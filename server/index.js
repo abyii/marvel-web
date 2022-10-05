@@ -39,7 +39,7 @@ app.get("/", (req, res) => {
 
 //starting points for routes
 app.use("", utilRoutes);
-// app.use('/dev', devRoutes); // only for dev use
+// app.use("/dev", devRoutes); // only for dev use
 app.use("/get", getRoutes);
 app.use("/update", updateRoutes);
 app.use("/create", createRoutes);

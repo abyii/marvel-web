@@ -60,21 +60,77 @@ export const assignIns = async (req, res) => {
 
 export const assignStu = async (req, res) => {
   try {
-    // const clcy = [
-    //     "vishalvinayram5432@gmail.com"
-    // ];
-    // // const count = await user.find({email : {$in : iot}}).select("email name").lean().exec();
-    // const updated = await user.updateMany({email: {$in: clcy}}, {
+    const aiml = [
+      "liyana.zuhur@gmail.com",
+      "abhinavpandeyjee@gmail.com",
+      "shashankts123@gmail.com", //not acknowledged
+      "shreyashsuryawanshi926@gmail.com",
+      "vikasuvcecs@gmail.com",
+      "kg01062003@gmail.com",
+    ];
+    const clcy = [
+      "bhavyajonnagadla01@gmail.com", //not acknowledged
+      "sujayvikramuvce@gmail.com",
+      "harshvardhanhpatil55@gmail.com",
+      "ssshrushtib2021@gmail.com",
+      "vinay.basavaraddi@gmail.com",
+      "shashankgurunaga@gmail.com",
+      "husoumya@gmail.com",
+    ];
+    const dp = [
+      "jdarshan098@gmail.com",
+      "nischithatiwari833@gmail.com",
+      "somteakhiangte02@gmail.com",
+      "k.lalrinchhana@gmail.com",
+    ];
+    const ev = [
+      "bhuvankoonur68630@gmail.com",
+      "xeomatrix369@gmail.com",
+      "lokeshjinkala333@gmail.com",
+      "prajwal.gkvk@gmail.com",
+      "bharathtech15@gmail.com",
+      "sureshaptel9210@gmail.com", //not acknowledged
+    ];
+    const iot = [
+      "knabhishek02@gmail.com",
+      "bhavidashok@gmail.com",
+      "deepaksinghpanwar111@gmail.com",
+      "shreyasdas54@gmail.com",
+      "utkarshraghu9@gmail.com",
+      "vishnuvb243@gmail.com",
+      "sarithaac1753@gmail.com",
+      "sushmitachougala5@gmail.com",
+    ];
+    // const found = await user
+    //   .find({ email: { $in: iot } })
+    //   .select(
+    //     "name email currentStuCourse currentLevel currentRole roleHistory enrollmentStatus"
+    //   )
+    //   .lean();
+    // const updated = await user.updateMany(
+    //   {
+    //     email: { $in: iot },
+    //   },
+    //   {
     //     enrollmentStatus: "ACTIVE",
     //     currentRole: "STU",
-    //     currentStuCourse: "CL-CY-001",
-    //     currentLevel : 1,
-    //     $push:{
-    //         roleHistory: {role: "STU", stuCourse:"CL-CY-001", startTime: new Date()}
+    //     currentStuCourse: "IOT-001",
+    //     currentLevel: 1,
+    //     // currentInsCourse:["AI-ML-001"],
+    //     $push: {
+    //       roleHistory: [
+    //         {
+    //           role: "STU",
+    //           // insCourse: ["AI-ML-001"],
+    //           stuCourse: "IOT-001",
+    //           startTime: new Date(),
+    //         },
+    //       ],
     //     },
-    // }
+    //   },
+    //   { new: true, timestamps: true }
     // );
-    // return res.json({updated});
+    return res.json({ found });
   } catch (error) {
     console.log(error);
     return res.json({ error });
