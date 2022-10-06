@@ -101,20 +101,20 @@ export const assignStu = async (req, res) => {
       "sarithaac1753@gmail.com",
       "sushmitachougala5@gmail.com",
     ];
-    // const found = await user
-    //   .find({ email: { $in: iot } })
-    //   .select(
-    //     "name email currentStuCourse currentLevel currentRole roleHistory enrollmentStatus"
-    //   )
-    //   .lean();
+    const found = await user
+      .find({ email: { $in: ["shashankts123@gmail.com"] } })
+      .select(
+        "name email currentStuCourse currentLevel currentRole roleHistory enrollmentStatus"
+      )
+      .lean();
     // const updated = await user.updateMany(
     //   {
-    //     email: { $in: iot },
+    //     email: { $in: ["shashankts123@gmail.com"] },
     //   },
     //   {
     //     enrollmentStatus: "ACTIVE",
     //     currentRole: "STU",
-    //     currentStuCourse: "IOT-001",
+    //     currentStuCourse: "AI-ML-001",
     //     currentLevel: 1,
     //     // currentInsCourse:["AI-ML-001"],
     //     $push: {
@@ -122,7 +122,7 @@ export const assignStu = async (req, res) => {
     //         {
     //           role: "STU",
     //           // insCourse: ["AI-ML-001"],
-    //           stuCourse: "IOT-001",
+    //           stuCourse: "AI-ML-001",
     //           startTime: new Date(),
     //         },
     //       ],
