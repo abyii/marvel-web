@@ -77,7 +77,8 @@ function RootLayout({ children, ...pageProps }: { children: React.ReactNode }) {
     <html
       lang="en"
       className={`${sans.variable} ${serif.variable} ${mono.variable}`}
-      style={{ scrollbarGutter: "stable" }}
+      style={{ scrollbarGutter: "stable", colorScheme: "dark" }}
+      data-theme="dark"
     >
       <head>
         <meta name="theme-color" content="#000000" />
