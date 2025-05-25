@@ -1,3 +1,4 @@
+
 import "../styles/globals.css";
 import Navbar from "../components/Navbar";
 import Context from "./Context";
@@ -6,7 +7,7 @@ import { Metadata } from "next";
 import Script from "next/script";
 import Footer from "../components/Footer";
 
-//fonts
+// Fonts
 const sans = IBM_Plex_Sans({
   weight: ["200", "300", "400", "500", "600", "700"],
   variable: "--font-ibm-sans",
@@ -28,7 +29,7 @@ const mono = IBM_Plex_Mono({
   subsets: ["latin-ext"],
 });
 
-//seo
+// SEO
 export const metadata: Metadata = {
   title: "UVCE MARVEL | Makerspace and R&D Lab.",
   description: "UVCE's own Makerspace and R&D Lab",
@@ -72,18 +73,17 @@ export const metadata: Metadata = {
   },
 };
 
-function RootLayout({ children, ...pageProps }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
       className={`${sans.variable} ${serif.variable} ${mono.variable}`}
-      style={{ scrollbarGutter: "stable", colorScheme: "dark" }}
       data-theme="dark"
     >
       <head>
         <meta name="theme-color" content="#000000" />
 
-        {/* microsoft clarity tracking */}
+        {/* Microsoft Clarity tracking */}
         <Script id="clarity-ms" strategy="afterInteractive">
           {`
             (function(c,l,a,r,i,t,y){
@@ -94,7 +94,7 @@ function RootLayout({ children, ...pageProps }: { children: React.ReactNode }) {
           `}
         </Script>
 
-        {/* google analytics tracking */}
+        {/* Google Analytics tracking */}
         <Script
           strategy="afterInteractive"
           src="https://www.googletagmanager.com/gtag/js?id=G-VV9ZYE0VC2"
@@ -120,5 +120,3 @@ function RootLayout({ children, ...pageProps }: { children: React.ReactNode }) {
     </html>
   );
 }
-
-export default RootLayout;

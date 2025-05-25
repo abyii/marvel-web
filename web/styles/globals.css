@@ -4,57 +4,50 @@
 * {
   font-family: var(--font-ibm-sans);
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
 }
+
 body {
   margin: 0;
   padding: 0;
+}
+
+body {
+  overflow: auto !important;
+  min-height: 100vh;
 }
 
 a {
   text-decoration: none;
 }
 
-::-webkit-scrollbar {
-  width: 5px;
-  
+html {
+  scrollbar-gutter: stable;
+  color-scheme: dark;
 }
 
-::-webkit-scrollbar:horizontal {
-  height: 5px;
-  
-}
-/* Track */
-::-webkit-scrollbar-track {
-  background: transparent;
+html {
+  color-scheme: dark;
 }
 
-/* ::-webkit-scrollbar-track .dark {
-  background: #000;
-} */
 
-::-webkit-scrollbar-track:horizontal {
-  background: transparent;
-}
+@supports (scrollbar-width: thin) {
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
 
-/* ::-webkit-scrollbar-track:horizontal .dark {
-  background: #000;
-} */
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-/* Handle */
-/* ::-webkit-scrollbar-thumb .dark {
-  background: rgb(81, 81, 81);
-  border-radius: 100px;
-} */
+  ::-webkit-scrollbar-thumb {
+    background: rgb(158, 158, 158);
+    border-radius: 100px;
+  }
 
-::-webkit-scrollbar-thumb {
-  background: rgb(158, 158, 158);
-  border-radius: 100px;
-}
-
-/* Handle on hover */
-::-webkit-scrollbar-thumb:hover {
-  background: rgb(98, 98, 98);
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(98, 98, 98);
+  }
 }
 
 @tailwind utilities;

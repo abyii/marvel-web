@@ -1,3 +1,4 @@
+
 import { Metadata } from "next";
 import { CourseCard } from "../../components/Cards";
 import dbClient from "../../utils/dbConnector";
@@ -38,11 +39,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function page() {
+export default async function CoursesPage() {
   const courseList = await getCourseList();
   return (
-    <Window className={"pt-5 md:pt-12 pb-40"}>
-      <div className="w-full max-w-5xl flex flex-col p-5">
+    <Window className="pt-5 md:pt-12 pb-40">
+      {/* Main content container with visibility fixes */}
+      <div
+        className="w-full max-w-5xl flex flex-col min-h-screen p-5 overflow-auto"
+        style={{ overflow: "auto", minHeight: "100vh" }}
+      >
         <h1 className="text-3xl md:text-5xl px-3">
           <span className="text-p-4 dark:text-p-5">Student Track / </span>
           <span className="text-p-0 dark:text-p-9">Courses</span>
@@ -56,7 +61,11 @@ export default async function page() {
         <div className="w-full flex justify-end">
           <CourseCreator />
         </div>
-        <div className="flex w-full gap-5 flex-wrap mt-5">
+        {/* Course list with visibility ensured */}
+        <div
+          className="flex w-full gap-5 flex-wrap mt-5"
+          style={{ visibility: "visible", opacity: 1, minHeight: "auto" }}
+        >
           {courseList?.map((c, i) => (
             <CourseCard data={c} key={i} />
           ))}
