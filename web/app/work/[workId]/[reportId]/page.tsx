@@ -7,6 +7,8 @@ import { ReviewStatus } from "@prisma/client";
 import Image from "next/image";
 import axios from "axios";
 
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
 const getReport = async (workId: string, stageId: string) => {
   const work = await dbClient.work.findUnique({
     where: {

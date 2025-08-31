@@ -13,6 +13,8 @@ import EventEditor from "./EventEditor";
 import EventDeleter from "./EventDeleter";
 import axios from "axios";
 
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
 const getEvent = cache(async (id: string) => {
   try {
     const event = await dbClient.event.findUnique({

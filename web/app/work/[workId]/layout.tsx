@@ -10,6 +10,8 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
 const getWork = cache(async (id: string) => {
   try {
     const work = await dbClient.work.findUniqueOrThrow({
@@ -74,32 +76,15 @@ export async function generateMetadata(props): Promise<Metadata> {
       : work?.name
   }`;
 
-  const og_url = new URL(`${process.env.NEXTAUTH_URL}/api/og/work`);
-  og_url.searchParams.append("name", work?.name || title);
-  og_url.searchParams.append("typeOfWork", work?.typeOfWork as string);
-  og_url.searchParams.append(
-    "reportCount",
-    work?.Reports?.length?.toString() as string
-  );
-
   return {
     title: title + " | UVCE MARVEL",
     description: work?.note,
     openGraph: {
       type: "book",
       title: title + " | UVCE MARVEL",
-      description: work?.note,
-      images: [
-        {
-          url: og_url,
-          secureUrl: og_url,
-          type: "image/jpeg",
-          width: 800,
-          height: 800,
-        },
-      ],
+      description: work?.note || title,
     },
-  } as Metadata;
+  };
 }
 
 export default async function layout(props) {
@@ -153,7 +138,7 @@ export default async function layout(props) {
           className="w-full flex flex-col md:flex-row mx-5 min-h-[250px] h-min"
         >
           {/* left box  */}
-          <Paper className="relative flex flex-col justify-between bg-p-10 dark:bg-p-1 bg-opacity-50 w-full md:w-1/2 max-h-min p-5 ">
+          <Paper className="relative flex flex-col justify-between bg-p-10 dark:bg-p-1 bg-opacity-50 w-full md:w-1/2 p-5 ">
             <div>
               <p className="text-p-3 dark:text-p-6 tracking-widest">
                 {work?.typeOfWork}
@@ -172,16 +157,20 @@ export default async function layout(props) {
                       key={i}
                       className="border-t-[1.5px] dark:border-t p-5 border-p-3 dark:border-p-6"
                     >
-                      <Link key={i} href={`/u/${p?.person?.slug}`}>
-                        <td className="flex gap-3 items-center py-3 px-5 text-base">
+                      <td className="py-3 px-5">
+                        <Link 
+                          key={i} 
+                          href={`/u/${p?.person?.slug}`}
+                          className="flex gap-3 items-center text-base"
+                        >
                           <Avatar
                             className="w-5"
                             alt={p?.person?.name}
                             src={p?.person?.profilePic}
                           />
                           {p?.person?.name}
-                        </td>
-                      </Link>
+                        </Link>
+                      </td>
                       <td className="px-5 py-3 text-xs">{p?.role}</td>
                       <td className="px-5 py-3 text-xs">{p?.status}</td>
                     </tr>
@@ -195,9 +184,9 @@ export default async function layout(props) {
             <Image
               width={"1000"}
               height={"1000"}
-              className="max-h-min object-cover w-full h-full"
+              className="object-cover w-full h-full"
               src={coverPhotoSrc}
-              alt={work?.name as string}
+              alt={"work cover photo"}
             />
           </Paper>
         </Paper>

@@ -7,6 +7,8 @@ import { ScopeEnum } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
 const getUserBySlug = cache(async (slug: string) => {
   const person = await dbClient.people.findUnique({
     where: {
@@ -35,10 +37,6 @@ export async function generateMetadata(props): Promise<Metadata> {
   const params = await props.params;
   const person = await getUserBySlug(params?.profileSlug);
 
-  const og_url = new URL(`${process.env.NEXTAUTH_URL}/api/og/people`);
-  og_url.searchParams.append("name", person?.name as string);
-  og_url.searchParams.append("profilePic", person?.profilePic as string);
-
   return {
     title: `${person?.name}'s Profile | UVCE MARVEL`,
     description: `${person?.name}'s Profile on UVCE MARVEL. UVCE's own Makerspace.`,
@@ -46,15 +44,6 @@ export async function generateMetadata(props): Promise<Metadata> {
       type: "profile",
       title: `${person?.name}'s Profile | UVCE MARVEL`,
       description: `${person?.name}'s Profile on UVCE MARVEL. UVCE's own Makerspace.`,
-      images: [
-        {
-          url: og_url,
-          secureUrl: og_url,
-          type: "image/jpeg",
-          width: 800,
-          height: 800,
-        },
-      ],
     },
   } as Metadata;
 }

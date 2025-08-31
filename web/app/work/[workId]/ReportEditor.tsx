@@ -1,10 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useTransition } from "react";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import axios from "axios";
 import {
   FullScreenDialog,
   TextField,
@@ -13,34 +11,30 @@ import {
 } from "@marvel/ui/ui";
 
 import { MarkdownEditor } from "../../../components/MarkdownEditor";
-import { useRouter } from "next/navigation";
+import { updateReport } from "./[reportId]/actions";
+import { ReportFormData } from "../../../types";
 
 const ReportEditor = ({ report, work }) => {
-  const router = useRouter();
   const sessionUser = useSession().data?.user;
   const [modalOpen, setModalOpen] = useState(false);
   const [changed, setChanged] = useState<boolean>(false);
-  const [formData, setFormData] = useState({
+  const [isPending, startTransition] = useTransition();
+  const [formData, setFormData] = useState<ReportFormData>({
     title: report?.title,
     content: report?.content,
   });
 
-  const { isPending: isUpdating, mutate: updateReport } = useMutation({
-    mutationFn: async () =>
-      (
-        await axios.post("/api/report/edit?id=" + report?.id, {
-          formData,
-        })
-      ).data,
-    onSuccess: () => {
-      router.refresh();
-      setChanged(false);
-      setModalOpen((p) => !p);
-    },
-    onError: (data: any) => {
-      alert(data?.response?.data?.message);
-    },
-  });
+  const handleUpdate = () => {
+    startTransition(async () => {
+      const response = await updateReport(report.id, formData);
+      if (response.success) {
+        setChanged(false);
+        setModalOpen(false);
+      } else {
+        alert(response.message);
+      }
+    });
+  };
 
   if (
     work?.People?.filter((p) => p?.status === "ACTIVE")
@@ -87,14 +81,14 @@ const ReportEditor = ({ report, work }) => {
                 <div className="w-full pb-48">
                   <Button
                     type="submit"
-                    isDisabled={isUpdating || !changed}
+                    isDisabled={isPending || !changed}
                     className={`float-right m-5 ${
-                      isUpdating ? "animate-pulse" : "animate-none"
+                      isPending ? "animate-pulse" : "animate-none"
                     }`}
-                    onPress={() => updateReport()}
+                    onPress={handleUpdate}
                   >
                     <span className="flex items-center gap-3">
-                      {isUpdating && <LoadingPulser className="h-5" />}
+                      {isPending && <LoadingPulser className="h-5" />}
                       Update
                     </span>
                   </Button>

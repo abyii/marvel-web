@@ -8,39 +8,44 @@ import {
 } from "@marvel/ui/ui/client";
 
 import { useSession } from "next-auth/react";
-import React, { useState } from "react";
+import React, { useState, useTransition } from "react";
 import { VscSettings as ManageIcon } from "react-icons/vsc";
 import ManagePeople from "./ManagePeople";
-import { useMutation } from "@tanstack/react-query";
-import axios, { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { WorkFormData } from "../../../../types";
 import WorkDeleter from "./WorkDeleter";
 import ImageUploader from "../../../../components/ImageUploader";
 import { ScopeEnum } from "@prisma/client";
+import { updateWorkMeta } from "../actions";
 
 const EditMeta = ({ work }) => {
   const sessionUser = useSession()?.data?.user;
   const [modalOpen, setModalOpen] = useState(false);
   const router = useRouter();
-  const [copy, setCopy] = useState<WorkFormData & { totalLevels?: number }>({
-    name: work?.name,
-    note: work?.note,
-    coverPhoto: work?.coverPhoto,
-    totalLevels: work?.totalLevels,
-  });
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const [copy, setCopy] = useState<WorkFormData & { totalLevels?: number }>(() => ({
+    name: work?.name ?? "",
+    note: work?.note ?? "",
+    coverPhoto: work?.coverPhoto ?? "",
+    totalLevels: work?.totalLevels ?? 1,
+  }));
   const [changed, setChanged] = useState(false);
 
-  const { data, isPending, mutate } = useMutation({
-    mutationFn: async () =>
-      (await axios.post("/api/work/edit-meta?workId=" + work?.id, { ...copy }))
-        .data,
-    onError: (e: AxiosError) => alert(e?.response?.data?.["message"]),
-    onSuccess: (data: any) => {
-      router.refresh();
-      setModalOpen(false);
-    },
-  });
+  const handleUpdate = async () => {
+    setError(null);
+    startTransition(async () => {
+      const response = await updateWorkMeta(work.id, copy);
+      if (response.success) {
+        router.refresh();
+        setModalOpen(false);
+      } else {
+        setError(response.message);
+        alert(response.message)
+      }
+    });
+  };
 
   //button will be visible to:
   //those who are active members of the work.
@@ -72,11 +77,12 @@ const EditMeta = ({ work }) => {
             onClose={() => setModalOpen(false)}
           >
             <div className="w-full pb-24">
+              {error && <div className="text-red-500 mb-4">{error}</div>}
               <form
                 className="my-5 flex flex-col pb-56 gap-5"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  mutate();
+                  handleUpdate();
                 }}
               >
                 {work?.typeOfWork === "PROJECT" && (
@@ -137,33 +143,26 @@ const EditMeta = ({ work }) => {
                         </p>
                       </div>
 
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
+                      <NumberField
+                        id="totalLevels"
+                        value={copy?.totalLevels}
+                        fullWidth
+                        minValue={1}
+                        maxValue={6}
+                        onChange={(e) => {
+                          setCopy({
+                            ...copy,
+                            totalLevels: Number(e),
+                          });
+                          setChanged(true);
                         }}
-                      >
-                        <NumberField
-                          id="totalLevels"
-                          value={copy?.totalLevels}
-                          fullWidth
-                          minValue={1}
-                          maxValue={6}
-                          onChange={(e) => {
-                            setCopy({
-                              ...copy,
-                              totalLevels: Number(e),
-                            });
-                            setChanged(true);
-                          }}
-                        />
-                      </form>
+                      />
                     </>
                   )}
                 <Button
                   className="max-w-max self-end"
                   isDisabled={isPending || !changed}
                   type="submit"
-                  // onClick={() => mutate()}
                 >
                   Update
                 </Button>

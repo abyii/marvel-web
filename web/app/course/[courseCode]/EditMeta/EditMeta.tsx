@@ -1,20 +1,22 @@
 "use client";
 import { FullScreenDialog, IconButton } from "@marvel/ui/ui/client";
 import { useSession } from "next-auth/react";
-import React, { useState } from "react";
+import React, { useState, useTransition } from "react";
 import { VscSettings as ManageIcon } from "react-icons/vsc";
-import { useMutation } from "@tanstack/react-query";
-import axios, { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { CourseFormData } from "../../../../types";
 import CourseForm from "../../../../components/forms/CourseForm";
 import CourseDeleter from "./CourseDeleter";
 import { ScopeEnum } from "@prisma/client";
+import { updateCourseMeta } from "../actions";
 
 const EditMeta = ({ course }) => {
   const sessionUser = useSession()?.data?.user;
   const [modalOpen, setModalOpen] = useState(false);
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
   const [copy, setCopy] = useState<CourseFormData>({
     courseDuration: course?.courseDuration,
     caption: course?.caption,
@@ -22,19 +24,18 @@ const EditMeta = ({ course }) => {
     repoURL: course?.repoURL,
   });
 
-  const { isPending, mutate } = useMutation({
-    mutationFn: async () =>
-      (
-        await axios.post("/api/course/edit-meta?courseId=" + course?.id, {
-          ...copy,
-        })
-      ).data,
-    onError: (e: AxiosError) => alert(e.response?.data?.["message"]),
-    onSuccess: (data: any) => {
-      router.refresh();
-      setModalOpen(false);
-    },
-  });
+  const handleUpdate = async () => {
+    setError(null);
+    startTransition(async () => {
+      const response = await updateCourseMeta(course.id, copy);
+      if (response.success) {
+        router.refresh();
+        setModalOpen(false);
+      } else {
+        setError(response.message);
+      }
+    });
+  };
 
   //button will be visible to:
   //admins and coordinators
@@ -59,10 +60,11 @@ const EditMeta = ({ course }) => {
             onClose={() => setModalOpen(false)}
           >
             <div className="w-full pb-56">
+              {error && <div className="text-red-500 mb-4">{error}</div>}
               <CourseForm
                 formData={copy}
                 setFormData={setCopy}
-                onSubmit={mutate}
+                onSubmit={handleUpdate}
                 submitDisabled={isPending}
                 submitLabel="Update Course"
               />

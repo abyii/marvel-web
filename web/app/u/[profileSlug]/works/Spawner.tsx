@@ -4,12 +4,11 @@ import { Paper } from "@marvel/ui/ui";
 import { FullScreenDialog, Button } from "@marvel/ui/ui";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { TextField } from "@marvel/ui/ui";
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import axios, { AxiosError } from "axios";
-import { TypeOfWork } from "@prisma/client";
+import { Course, TypeOfWork } from "@prisma/client";
+import { getCourseList, spawnWork } from "../actions";
 
 type FormData = {
   selectedCourse?: string;
@@ -26,32 +25,36 @@ const Spawner = ({ authorSlug }: { authorSlug: string }) => {
   });
   const [formType, setFormType] = useState<TypeOfWork>("PROJECT");
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [isCourseListLoading, startCourseListTransition] = useTransition();
+  const [courseList, setCourseList] = useState<Course[]>([]);
 
   useEffect(() => {
     setFormData({ authorSlug });
   }, [formType, authorSlug]);
 
-  const { data: courseList, isLoading: isCourseListLoading } = useQuery({
-    queryKey: ["course-list"],
-    queryFn: async () =>
-      (await axios.post(`/api/course/get-list`)).data?.courseList,
-    enabled: formType === "COURSE",
-  });
+  useEffect(() => {
+    if (formType === "COURSE") {
+      startCourseListTransition(async () => {
+        const response = await getCourseList();
+        if (response.success) {
+          setCourseList(response.courseList as Course[]);
+        }
+      });
+    }
+  }, [formType]);
 
-  const { mutate: sendMutation, isPending } = useMutation({
-    mutationFn: async () =>
-      (
-        await axios.post(`/api/work/spawn?type=${formType}`, {
-          formData,
-        })
-      ).data,
-    onError: (error: AxiosError) =>
-      alert(error?.response?.data?.["message"] || "Couldn't create work."),
-    onSuccess: () => {
-      router.refresh();
-      setDialogOpen(false);
-    },
-  });
+  const handleSpawnWork = () => {
+    startTransition(async () => {
+      const response = await spawnWork(formType, formData);
+      if (response.success) {
+        router.refresh();
+        setDialogOpen(false);
+      } else {
+        alert(response.message);
+      }
+    });
+  };
 
   if (
     sessionUser?.scope?.map((s) => s.scope)?.includes("CRDN") ||
@@ -90,7 +93,7 @@ const Spawner = ({ authorSlug }: { authorSlug: string }) => {
             className="z-10"
           >
             <div className="w-full pb-24">
-              <div>
+              <div className={isPending ? "opacity-60 pointer-events-none" : ""}>
                 {(sessionUser?.scope?.map((s) => s.scope)?.includes("ADMIN") ||
                   sessionUser?.scope
                     ?.map((s) => s.scope)
@@ -131,9 +134,7 @@ const Spawner = ({ authorSlug }: { authorSlug: string }) => {
                                         : "dark:bg-p-1 bg-p-9 border-2 border-transparent"
                                     } p-5 select-none cursor-pointer box-border`}
                                   >
-                                    <h6 className="text-xs tracking-wider">
-                                      {course?.domainName}
-                                    </h6>
+                                    
                                     <h3 className="text-2xl">
                                       {course?.courseCode}
                                     </h3>
@@ -176,7 +177,7 @@ const Spawner = ({ authorSlug }: { authorSlug: string }) => {
                 )}
                 <div className="w-full flex gap-5 justify-end pb-48">
                   <Button
-                    onPress={() => sendMutation()}
+                    onPress={handleSpawnWork}
                     isDisabled={
                       isPending ||
                       (formType === "COURSE" && !formData?.selectedCourse) ||

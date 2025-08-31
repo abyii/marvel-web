@@ -11,6 +11,8 @@ import { cache } from "react";
 import { Metadata } from "next";
 import axios from "axios";
 
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
 const getArticle = cache(async (id: string) => {
   try {
     const article = await dbClient.article.findUniqueOrThrow({
@@ -71,15 +73,6 @@ export async function generateMetadata(
   const params = await props.params;
   const article = await getArticle(params?.articleId);
 
-  const og_url = new URL(`${process.env.NEXTAUTH_URL}/api/og/article`);
-  og_url.searchParams.append("title", article?.title);
-  og_url.searchParams.append("caption", article?.caption);
-  og_url.searchParams.append("typeOfArticle", article?.typeOfArticle);
-  og_url.searchParams.append(
-    "createdAt",
-    new Date(article?.createdAt)?.toLocaleDateString("en-IN")
-  );
-
   return {
     title: `${article?.title} | UVCE MARVEL`,
     description: article?.caption,
@@ -87,15 +80,6 @@ export async function generateMetadata(
       type: "article",
       title: `${article?.title} | UVCE MARVEL`,
       description: article?.caption,
-      images: [
-        {
-          url: og_url,
-          secureUrl: og_url,
-          type: "image/jpeg",
-          width: 800,
-          height: 800,
-        },
-      ],
     },
   } as Metadata;
 }
@@ -107,10 +91,6 @@ export const dynamicParams = true;
 
 export default async function layout(props: any) {
   const params = await props.params;
-
-  const {
-    children
-  } = props;
 
   const article = await getArticle(params?.articleId);
 
@@ -126,7 +106,7 @@ export default async function layout(props: any) {
     <Window className={"pt-12 pb-40"}>
       {/* whole thing  */}
       <div className="w-full max-w-5xl flex flex-col items-center px-5 z-10">
-        {children}
+        {props.children}
 
         {/*blurred image*/}
         <Image
@@ -144,7 +124,7 @@ export default async function layout(props: any) {
           className="w-full flex flex-col md:flex-row mx-5 min-h-[250px] h-min"
         >
           {/* left box  */}
-          <Paper className="relative flex flex-col justify-between bg-p-10 bg-opacity-50 dark:bg-p-1 w-full md:w-1/2 max-h-min p-5 ">
+          <Paper className="relative flex flex-col justify-between bg-p-10 bg-opacity-50 dark:bg-p-1 w-full md:w-1/2 p-5 h-full">
             <div>
               <p className=" text-p-3 dark:text-p-6 tracking-widest">
                 {article?.typeOfArticle} &#183;{" "}
@@ -176,15 +156,17 @@ export default async function layout(props: any) {
                         key={i}
                         className="border-t-[1.5px] dark:border-t p-5 border-p-3 dark:border-p-6"
                       >
-                        <Link key={i} href={`/u/${p?.person?.slug}`}>
-                          <td className="flex gap-3 items-center py-3 px-5 text-base">
-                            <Avatar
-                              alt={p?.person?.name}
-                              src={p?.person?.profilePic}
-                            />
-                            {p?.person?.name}
-                          </td>
-                        </Link>
+                        <td>
+                          <Link key={i} href={`/u/${p?.person?.slug}`}>
+                            <div className="flex gap-3 items-center py-3 px-5 text-base">
+                              <Avatar
+                                alt={p?.person?.name}
+                                src={p?.person?.profilePic}
+                              />
+                              {p?.person?.name}
+                            </div>
+                          </Link>
+                        </td>
                         <td className="px-5 py-3 text-xs">{p?.role}</td>
                       </tr>
                     ))}

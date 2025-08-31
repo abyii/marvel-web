@@ -1,19 +1,18 @@
 "use client";
 
 import { FullScreenDialog, Button } from "@marvel/ui/ui";
-
 import { useSession } from "next-auth/react";
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import axios, { AxiosError } from "axios";
 import { EventFormData } from "../../types";
 import { ScopeEnum } from "@prisma/client";
 import EventForm from "../../components/forms/EventForm";
+import { createEvent } from "./actions";
 
 const EventCreatingForm = () => {
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   const sessionUser = useSession()?.data?.user;
+  const [isPending, startTransition] = useTransition();
   const [formData, setFormData] = useState<EventFormData>({
     title: "",
     caption: "",
@@ -30,22 +29,18 @@ const EventCreatingForm = () => {
     actionText: "",
   });
   const router = useRouter();
-  const queryClient = useQueryClient();
 
-  const { mutate: sendMutation, isPending: isCreateLoading } = useMutation({
-    mutationFn: async () =>
-      (
-        await axios.post(`/api/event/create`, {
-          ...formData,
-        })
-      ).data,
-    onError: (e: AxiosError) =>
-      alert(e?.response?.data?.["message"] || "Something went wrong."),
-    onSuccess: () => {
-      queryClient.invalidateQueries(["event_list"] as any);
-      setDialogOpen(false);
-    },
-  });
+  const handleSubmit = async () => {
+    startTransition(async () => {
+      const response = await createEvent(formData);
+      if (response.success) {
+        setDialogOpen(false);
+        router.refresh();
+      } else {
+        alert(response.message);
+      }
+    });
+  };
 
   if (
     ["CRDN", "ADMIN"].some((s) =>
@@ -74,8 +69,8 @@ const EventCreatingForm = () => {
                 mode="create"
                 formData={formData}
                 setFormData={setFormData}
-                onSubmit={sendMutation}
-                submitDisabled={isCreateLoading}
+                onSubmit={handleSubmit}
+                submitDisabled={isPending}
               />
             </div>
           </FullScreenDialog>

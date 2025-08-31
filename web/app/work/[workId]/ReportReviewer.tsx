@@ -1,33 +1,31 @@
 "use client";
 import { Button } from "@marvel/ui/ui";
-import axios from "axios";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import React, { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import React, { useState, useTransition } from "react";
 import { ScopeEnum } from "@prisma/client";
+import { reviewReport } from "./[reportId]/actions";
 
 const ReportReviewer = ({ report, work }) => {
   const sessionUser = useSession().data?.user;
-  const router = useRouter();
   const [feedback, setFeedback] = useState({ isOpen: false, content: "" });
   const [confirmApprove, setConfirmApprove] = useState(0);
+  const [isPending, startTransition] = useTransition();
 
-  const { isPending, mutate: sendAction } = useMutation({
-    mutationFn: async (action: "approve" | "feedback") =>
-      await axios.post(
-        "/api/report/review?id=" + report?.id + "&action=" + action,
-        { content: feedback?.content }
-      ),
-    onSuccess: () => {
-      setConfirmApprove(0);
-      setFeedback({ isOpen: false, content: "" });
-      router.refresh();
-    },
-    onError: (data: any) => {
-      alert(data?.response?.data?.message);
-    },
-  });
+  const handleReview = (action: "approve" | "feedback") => {
+    startTransition(async () => {
+      const response = await reviewReport(
+        report.id,
+        action,
+        feedback.content
+      );
+      if (response.success) {
+        setConfirmApprove(0);
+        setFeedback({ isOpen: false, content: "" });
+      } else {
+        alert(response.message);
+      }
+    });
+  };
 
   if (
     //work is project and session user is one of the coordinators
@@ -52,7 +50,7 @@ const ReportReviewer = ({ report, work }) => {
             isDisabled={isPending}
             onPress={() =>
               confirmApprove === 2
-                ? sendAction("approve")
+                ? handleReview("approve")
                 : setConfirmApprove((p) => p + 1)
             }
           >
@@ -86,7 +84,7 @@ const ReportReviewer = ({ report, work }) => {
             ></textarea>
             <div className="flex gap-5">
               <Button
-                onPress={() => sendAction("feedback")}
+                onPress={() => handleReview("feedback")}
                 className="mt-5"
                 isDisabled={isPending}
                 type="submit"

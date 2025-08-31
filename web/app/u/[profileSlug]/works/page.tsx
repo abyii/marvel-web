@@ -3,6 +3,8 @@ import Link from "next/link";
 import dbClient from "../../../../utils/dbConnector";
 import Spawner from "./Spawner";
 
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
 const getUserWorksBySlug = async (slug: string) => {
   const works = await dbClient.work.findMany({
     where: {

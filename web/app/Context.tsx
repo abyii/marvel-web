@@ -25,9 +25,9 @@ function Context({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider refetchOnWindowFocus={false}>
       <ThemeProvider
+        attribute="data-theme"
         defaultTheme={"dark"}
         themes={["light", "dark"]}
-        enableSystem
       >
         <QueryClientProvider client={queryClient}>
           {children}

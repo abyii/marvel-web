@@ -21,6 +21,8 @@ const getUserReadmeBySlug = async (slug: string) => {
   return person;
 };
 
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
 export default async function page(props) {
   const params = await props.params;
   const readMeData = await getUserReadmeBySlug(params?.profileSlug as string);

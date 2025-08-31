@@ -2,39 +2,35 @@
 import { Button, LoadingPulser, TextField } from "@marvel/ui/ui";
 import { FullScreenDialog } from "@marvel/ui/ui";
 
-import axios from "axios";
 import { useSession } from "next-auth/react";
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useTransition } from "react";
 import { MarkdownEditor } from "../../../components/MarkdownEditor";
 import { useRouter } from "next/navigation";
+import { createReport } from "./[reportId]/actions";
+import { ReportFormData } from "../../../types";
 
 const ReportWriter = ({ work }) => {
   const router = useRouter();
   const sessionUser = useSession().data?.user;
   const [modalOpen, setModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
+  const [isPending, startTransition] = useTransition();
+  const [formData, setFormData] = useState<ReportFormData>({
     title: "",
     content: "",
   });
 
-  const { isPending: isCreating, mutate: createReport } = useMutation({
-    mutationFn: async () =>
-      (
-        await axios.post("/api/report/create?workId=" + work?.id, {
-          formData,
-        })
-      ).data,
-    onSuccess: (data) => {
-      setFormData({ title: "", content: "" });
-      setModalOpen((p) => !p);
-      console.log(data);
-      router.replace(`/work/${work?.id}/${data?.reportId}`);
-    },
-    onError: (data: any) => {
-      alert(data?.response?.data?.message || "Something went wrong");
-    },
-  });
+  const handleCreate = () => {
+    startTransition(async () => {
+      const response = await createReport(work.id, formData);
+      if (response.success) {
+        setFormData({ title: "", content: "" });
+        setModalOpen(false);
+        router.replace(`/work/${work?.id}/${response.data?.reportId}`);
+      } else {
+        alert(response.message || "Something went wrong");
+      }
+    });
+  };
 
   if (
     sessionUser &&
@@ -79,14 +75,14 @@ const ReportWriter = ({ work }) => {
                 <div className="w-full pb-48">
                   <Button
                     type="submit"
-                    isDisabled={isCreating}
+                    isDisabled={isPending}
                     className={`float-right m-5 ${
-                      isCreating ? "animate-pulse" : "animate-none"
+                      isPending ? "animate-pulse" : "animate-none"
                     }`}
-                    onPress={() => createReport()}
+                    onPress={handleCreate}
                   >
                     <span className="flex gap-3 items-center">
-                      {isCreating && <LoadingPulser className="h-5" />}
+                      {isPending && <LoadingPulser className="h-5" />}
                       Submit
                     </span>
                   </Button>

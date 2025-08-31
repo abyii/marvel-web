@@ -3,14 +3,17 @@ import { Button, Paper } from "@marvel/ui/ui";
 import { TextField } from "@marvel/ui/ui";
 import { Avatar } from "../../../../components/Avatar";
 import axios, { AxiosError } from "axios";
-import { memo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { memo, useState, useTransition } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Role, Status } from "@prisma/client";
 import { useRouter } from "next/navigation";
+import { managePeopleOnWork } from "../actions";
 
 const ManagePeople = ({ work }) => {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   const {
     data: peopleFromSearch,
@@ -26,19 +29,23 @@ const ManagePeople = ({ work }) => {
   const peopleList = peopleFromSearch?.filter(
     (p) => !work?.People?.map((p) => p?.personId)?.includes(p?.id)
   );
-  const { data, isPending, mutate } = useMutation({
-    mutationFn: async (args: {
-      action: "add-person" | "remove-person" | "change-status";
-      personId: string;
-      status: Status;
-      role: Role;
-    }) =>
-      await axios.post(`/api/work/manage-people?workId=${work?.id}`, {
-        ...args,
-      }),
-    onSuccess: () => router.refresh(),
-    onError: (data: AxiosError) => alert(data?.response?.data?.["message"]),
-  });
+
+  const handleManagePeople = async (args: {
+    action: "add-person" | "remove-person" | "change-status";
+    personId: string;
+    status: Status;
+    role: Role;
+  }) => {
+    setError(null);
+    startTransition(async () => {
+      const response = await managePeopleOnWork(work.id, args);
+      if (response.success) {
+        router.refresh();
+      } else {
+        setError(response.message);
+      }
+    });
+  };
 
   return (
     <Paper
@@ -48,6 +55,7 @@ const ManagePeople = ({ work }) => {
       }`}
     >
       <h6 className="text-2xl w-full">People</h6>
+      {error && <div className="text-red-500 mb-4">{error}</div>}
       {/* searching to add authors */}
       <div className="overflow-x-auto w-full">
         <table className="w-full whitespace-nowrap">
@@ -69,7 +77,7 @@ const ManagePeople = ({ work }) => {
                       className="block bg-transparent py-1 border-0 border-b"
                       defaultValue={p?.status}
                       onChange={(e) =>
-                        mutate({
+                        handleManagePeople({
                           action: "change-status",
                           personId: p?.personId,
                           role: p?.role,
@@ -88,7 +96,7 @@ const ManagePeople = ({ work }) => {
                   <td>
                     <Button
                       onPress={() =>
-                        mutate({
+                        handleManagePeople({
                           action: "remove-person",
                           personId: p?.personId,
                           role: p?.role,
@@ -153,7 +161,7 @@ const ManagePeople = ({ work }) => {
                       ) && (
                         <Button
                           onPress={() =>
-                            mutate({
+                            handleManagePeople({
                               action: "add-person",
                               personId: p?.id,
                               role: "COORDINATOR",
@@ -168,7 +176,7 @@ const ManagePeople = ({ work }) => {
                   <td className="px-5 py-3 text-xs">
                     <Button
                       onPress={() =>
-                        mutate({
+                        handleManagePeople({
                           action: "add-person",
                           personId: p?.id,
                           role: "AUTHOR",

@@ -4,7 +4,7 @@ import { cache } from "react";
 import dbClient from "../../../../utils/dbConnector";
 import { WorkCard } from "../../../../components/Cards";
 
-export const revalidate = 60 * 60 * 24 * 7; //1 week
+export const revalidate = 604800; //1 week
 
 const getWorks = cache(async (courseCode: string) => {
   const works = await dbClient.work.findMany({
@@ -34,6 +34,10 @@ const getWorks = cache(async (courseCode: string) => {
         },
       },
     },
+    take: 100,
+    orderBy: {
+      createdAt: 'desc'
+    }
   });
   return works;
 });

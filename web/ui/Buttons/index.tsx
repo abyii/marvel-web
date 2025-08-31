@@ -73,7 +73,7 @@ export const Button = ({
       {Left ? (
         <Left
           className={clsx(
-            "h-full aspect-square -ml-1 -my-1",
+            "h-full aspect-square -ml-1 -my-1 justify-center",
             {
               "text-p-10": variant == "standard",
             },
@@ -88,7 +88,7 @@ export const Button = ({
       {Right ? (
         <Right
           className={clsx(
-            "h-full aspect-square -mr-1 -my-1",
+            "h-full aspect-square -mr-1 -my-1 justify-center",
             {
               "text-p-10": variant == "standard",
             },

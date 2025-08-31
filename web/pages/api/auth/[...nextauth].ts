@@ -20,6 +20,7 @@ export const authOptions: AuthOptions = {
   ],
   callbacks: {
     async session({ session, token }) {
+      console.info("auth called");
       const existingUser = await dbClient.people.findUnique({
         where: {
           googleId: token?.sub,
@@ -37,7 +38,6 @@ export const authOptions: AuthOptions = {
           profilePic: true,
         },
       });
-      console.info("auth called");
       if (!existingUser) {
         // if no user, create slug and new user with the available data.
         let newSlug = slugify(token?.name as string, {

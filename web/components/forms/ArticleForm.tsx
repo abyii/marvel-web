@@ -1,12 +1,11 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState, useTransition } from "react";
 import { ArticleFormData } from "../../types";
-import { TypeOfArticle } from "@prisma/client";
-import { Button, Paper, TextField } from "@marvel/ui/ui/";
+import { Course, TypeOfArticle } from "@prisma/client";
+import { Button, LoadingPulser, Paper, TextField } from "@marvel/ui/ui/";
 import { MarkdownEditor } from "../MarkdownEditor";
 import ImageUploader from "../ImageUploader";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import { getCourseList } from "../../app/u/[profileSlug]/actions";
 
 type ArticleFormProps = {
   formData: ArticleFormData;
@@ -14,6 +13,7 @@ type ArticleFormProps = {
   onSubmit?: () => void;
   submitDisabled?: boolean;
   submitLabel?: string;
+  isSubmitLoading?: boolean;
   typeOfArticle: TypeOfArticle;
 };
 
@@ -23,14 +23,22 @@ const ArticleForm = ({
   onSubmit,
   submitDisabled,
   submitLabel,
+  isSubmitLoading,
   typeOfArticle,
 }: ArticleFormProps) => {
-  const { data: courseList, isLoading: isCourseListLoading } = useQuery({
-    queryKey: ["course-list"],
-    queryFn: async () =>
-      (await axios.post(`/api/course/get-list`)).data?.courseList,
-    enabled: typeOfArticle === "RESOURCE",
-  });
+  const [isCourseListLoading, startCourseListTransition] = useTransition();
+  const [courseList, setCourseList] = useState<Course[]>([]);
+
+  useEffect(() => {
+    if (typeOfArticle === "RESOURCE") {
+      startCourseListTransition(async () => {
+        const response = await getCourseList();
+        if (response.success) {
+          setCourseList(response.courseList as Course[]);
+        }
+      });
+    }
+  }, [typeOfArticle]);
 
   return (
     <form
@@ -148,6 +156,7 @@ const ArticleForm = ({
         <Button
           onPress={() => onSubmit && onSubmit()}
           isDisabled={submitDisabled || isCourseListLoading}
+          left={isSubmitLoading ? LoadingPulser : undefined}
         >
           {submitLabel}
         </Button>

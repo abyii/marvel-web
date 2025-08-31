@@ -1,13 +1,11 @@
 "use client";
 
 import { FullScreenDialog, LoadingPulser, Button } from "@marvel/ui/ui";
-
 import { useSession } from "next-auth/react";
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
 import { MarkdownEditor } from "@marvel/ui/ui";
+import { updateReadMe } from "./actions";
 
 type ReadMeEditorProp = { profileSlug: string; content: string };
 
@@ -18,21 +16,20 @@ const ReadMeEditor = ({ profileSlug, content }: ReadMeEditorProp) => {
   const [copy, setCopy] = useState(content);
   const [changed, setChanged] = useState<boolean>(false);
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
-  const { mutate: mutateReadMe, isPending } = useMutation({
-    mutationFn: async () =>
-      (
-        await axios.post(`/api/people/update-readme?slug=${profileSlug}`, {
-          content: copy,
-        })
-      ).data,
-    onError: () => alert("Couldn't edit readme. loss"),
-    onSuccess: () => {
-      router.refresh();
-      setChanged(false);
-      setDialogOpen(false);
-    },
-  });
+  const handleUpdate = async () => {
+    startTransition(async () => {
+      const response = await updateReadMe(profileSlug, copy);
+      if (response.success) {
+        router.refresh();
+        setChanged(false);
+        setDialogOpen(false);
+      } else {
+        alert(response.message);
+      }
+    });
+  };
 
   return (
     <>
@@ -61,14 +58,14 @@ const ReadMeEditor = ({ profileSlug, content }: ReadMeEditorProp) => {
             }}
           />
 
-          {/* action area  */}
+          {/* action area */}
           <div className="w-full pb-48">
             <Button
               isDisabled={isPending || !changed}
               className={`float-right m-5 ${
                 isPending ? "animate-pulse" : "animate-none"
               }`}
-              onPress={() => mutateReadMe()}
+              onPress={handleUpdate}
             >
               <span className="flex items-center gap-3">
                 {isPending && <LoadingPulser className="h-5" />}

@@ -3,6 +3,8 @@ import Link from "next/link";
 import dbClient from "../../../../utils/dbConnector";
 import Writer from "./Writer";
 
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
 const getUserWritingsBySlug = async (slug: string) => {
   const writings = await dbClient.article.findMany({
     where: {

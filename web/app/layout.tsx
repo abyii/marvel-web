@@ -6,6 +6,8 @@ import { Metadata } from "next";
 import Script from "next/script";
 import Footer from "../components/Footer";
 
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
 //fonts
 const sans = IBM_Plex_Sans({
   weight: ["200", "300", "400", "500", "600", "700"],
@@ -77,7 +79,7 @@ function RootLayout({ children, ...pageProps }: { children: React.ReactNode }) {
     <html
       lang="en"
       className={`${sans.variable} ${serif.variable} ${mono.variable}`}
-      style={{ scrollbarGutter: "stable" }}
+      suppressHydrationWarning
     >
       <head>
         <meta name="theme-color" content="#000000" />

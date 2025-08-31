@@ -5,6 +5,8 @@ import ContentsIndex from "./ContentsIndex";
 import Link from "next/link";
 import { cache } from "react";
 
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
 const getSyllabus = cache(async (courseCode: string) => {
   const course = await dbClient.course.findUnique({
     where: {

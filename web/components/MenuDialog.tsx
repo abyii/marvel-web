@@ -24,6 +24,7 @@ import {
 import { GoSignOut, GoSignIn } from "react-icons/go";
 import { useTheme } from "next-themes";
 import { MdLightMode, MdDarkMode } from "react-icons/md";
+import { searchMarvel } from "../app/actions";
 
 const tabs = {
   people: "People",
@@ -47,11 +48,11 @@ const MenuDialog = ({ menuOpen, setMenuOpen }) => {
       queryKey: [selectedTab, query],
       initialPageParam: 0,
       queryFn: async ({ pageParam }) =>
-        (
-          await axios.get(
-            `/api/${selectedTab}/search?q=${query}&skip=${pageParam}`
-          )
-        ).data?.data,
+        await searchMarvel({
+          category: selectedTab,
+          query: query,
+          skip: pageParam,
+        }),
       enabled: !!query || false,
       getNextPageParam: (lastPage, pages) =>
         lastPage?.length == 12 ? pages?.length * 12 : null,
@@ -163,7 +164,7 @@ const MenuDialog = ({ menuOpen, setMenuOpen }) => {
                 ) : selectedTab === "event" ? (
                   <>
                     {data?.pages?.flat()?.map((d, i) => (
-                      <EventCard data={d} key={i} />
+                      <EventCard data={d as any} key={i} />
                     ))}
                   </>
                 ) : null}

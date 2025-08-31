@@ -4,7 +4,7 @@ import { cache } from "react";
 import dbClient from "../../../../utils/dbConnector";
 import { ArticleCard } from "../../../../components/Cards";
 
-export const revalidate = 60 * 60 * 24 * 7; //1 week
+export const revalidate = 604800; //1 week
 
 const getArticles = cache(async (courseCode: string) => {
   const articles = await dbClient.article.findMany({
@@ -24,6 +24,10 @@ const getArticles = cache(async (courseCode: string) => {
       createdAt: true,
       typeOfArticle: true,
     },
+    orderBy: {
+      createdAt: 'desc'
+    },
+    take:100
   });
   return JSON.parse(JSON.stringify(articles));
 });

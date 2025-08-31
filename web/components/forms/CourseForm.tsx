@@ -44,8 +44,18 @@ const CourseForm = ({
             fullWidth
             isRequired
             value={formData.courseCode}
+            errorMessage={
+              formData.courseCode && 
+              !/^[a-zA-Z0-9-]+$/.test(formData.courseCode) ? 
+              "Only letters, numbers and hyphens allowed" :
+              formData.courseCode?.includes(" ") ?
+              "Spaces are not allowed" : 
+              undefined
+            }
             onChange={(e) => {
-              setFormData({ ...formData, courseCode: e });
+              // Remove any spaces and non-alphanumeric/hyphen characters
+              const sanitizedValue = e.trim().replace(/[^a-zA-Z0-9-]/g, '');
+              setFormData({ ...formData, courseCode: sanitizedValue });
             }}
             placeholder="Enter Course Code"
             maxLength={12}

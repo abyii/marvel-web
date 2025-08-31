@@ -7,6 +7,8 @@ import { Metadata } from "next";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
 const getCourse = cache(async (id: string) => {
   try {
     const course = await dbClient.course.findUnique({
@@ -35,18 +37,6 @@ export async function generateMetadata(props): Promise<Metadata> {
   const params = await props.params;
   const course = await getCourse(params?.courseCode);
 
-  const og_url = new URL(`${process.env.NEXTAUTH_URL}/api/og/course`);
-  og_url.searchParams.append("courseCode", course?.courseCode as string);
-  og_url.searchParams.append("caption", course?.caption as string);
-  og_url.searchParams.append(
-    "totalLevels",
-    course?.totalLevels?.toString() as string
-  );
-  og_url.searchParams.append(
-    "courseDuration",
-    course?.courseDuration as string
-  );
-
   return {
     title: `${course?.courseCode} | UVCE MARVEL`,
     description: course?.caption,
@@ -54,15 +44,6 @@ export async function generateMetadata(props): Promise<Metadata> {
       type: "book",
       title: `${course?.courseCode} | UVCE MARVEL`,
       description: course?.caption,
-      images: [
-        {
-          url: og_url,
-          secureUrl: og_url,
-          type: "image/jpeg",
-          width: 800,
-          height: 800,
-        },
-      ],
     },
   } as Metadata;
 }
@@ -109,7 +90,7 @@ export default async function layout(props) {
           className="w-full flex flex-col md:flex-row mx-5 min-h-[250px] h-min"
         >
           {/* left box  */}
-          <Paper className="border-b-[1.5px] border-p-0 dark:border-p-6 dark:border-b md:border-none relative flex flex-col justify-between bg-opacity-50 bg-p-10 dark:bg-p-1 w-full md:w-1/2 max-h-min p-5 ">
+          <Paper className="border-b-[1.5px] border-p-0 dark:border-p-6 dark:border-b md:border-none relative flex flex-col justify-between bg-opacity-50 bg-p-10 dark:bg-p-1 w-full md:w-1/2 h-full p-5">
             <div>
               <p className="text-p-3 dark:text-p-6 tracking-widest">COURSE</p>
               <h1 className="text-6xl my-2">{course?.courseCode}</h1>

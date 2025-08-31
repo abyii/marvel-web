@@ -2,20 +2,22 @@
 
 import React from "react";
 import { useSession } from "next-auth/react";
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import axios from "axios";
-import { Button, IconButton } from "@marvel/ui/ui";
+import { useState, useTransition } from "react";
+import { Button } from "@marvel/ui/ui";
 import { FullScreenDialog } from "@marvel/ui/ui";
 import { useRouter } from "next/navigation";
 import { ArticleFormData } from "../../../types";
 import ArticleForm from "../../../components/forms/ArticleForm";
+import { deleteArticle, updateArticle } from "./actions";
 
 const ArticleEditor = ({ article }: { article: any }) => {
   const router = useRouter();
   const sessionUser = useSession().data?.user;
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number>(0);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState<ArticleFormData>({
     title: article?.title,
     caption: article?.caption,
@@ -24,37 +26,33 @@ const ArticleEditor = ({ article }: { article: any }) => {
     coverPhoto: article?.coverPhoto,
   });
 
-  const { isPending: isUpdating, mutate: updateArticle } = useMutation({
-    mutationFn: async () =>
-      (
-        await axios.post("/api/article/edit?id=" + article?.id, {
-          ...formData,
-        })
-      ).data,
-    onSuccess: () => {
-      router.refresh();
-      setModalOpen((p) => !p);
-    },
-    onError: (data: any) => {
-      alert(data?.response?.data?.message);
-    },
-  });
+  const handleUpdate = async () => {
+    setError(null);
+    startTransition(async () => {
+      const response = await updateArticle(article.id, formData);
+      if (response.success) {
+        router.refresh();
+        setModalOpen(false);
+      } else {
+        setError(response.message);
+      }
+    });
+  };
 
-  const { isPending: isDeleting, mutate: sendDelete } = useMutation({
-    mutationFn: async () =>
-      (await axios.delete(`/api/article/delete?id=${article?.id}`)).data,
-    onSuccess: () => {
-      alert("Article successfully deleted.");
-      router.refresh();
-      router.back();
-    },
-    onError: () => {
-      alert("Couldn't delete article");
-    },
-  });
+  const handleDelete = async () => {
+    setError(null);
+    startTransition(async () => {
+      const response = await deleteArticle(article.id);
+      if (response.success) {
+        router.refresh();
+        router.back();
+      } else {
+        setError(response.message);
+      }
+    });
+  };
 
   if (
-    //if not accepted request
     article?.People?.filter((p: any) => p?.status !== "PENDING")
       .map((p: any) => p?.personId)
       .includes(sessionUser?.id) ||
@@ -62,15 +60,18 @@ const ArticleEditor = ({ article }: { article: any }) => {
   ) {
     return (
       <>
+        {error && (
+          <div className="text-red-500 mb-4">{error}</div>
+        )}
         <Button variant="standard" onPress={() => setModalOpen(true)}>
           Edit Article
         </Button>
         <Button
           variant="outlined"
           className="border border-[red]"
-          isDisabled={isDeleting}
+          isDisabled={isPending}
           onPress={() =>
-            confirmDelete === 2 ? sendDelete() : setConfirmDelete((p) => p + 1)
+            confirmDelete === 2 ? handleDelete() : setConfirmDelete((p) => p + 1)
           }
         >
           {confirmDelete === 0
@@ -89,13 +90,13 @@ const ArticleEditor = ({ article }: { article: any }) => {
                 formData={formData}
                 setFormData={setFormData}
                 typeOfArticle={article?.typeOfArticle}
-                onSubmit={updateArticle}
+                onSubmit={handleUpdate}
                 submitDisabled={
-                  isUpdating ||
-                  isDeleting ||
+                  isPending ||
                   (article?.typeOfArticle === "RESOURCE" &&
                     !formData?.courseIds?.length)
                 }
+                isSubmitLoading={isPending}
                 submitLabel="Update Article"
               />
             </div>

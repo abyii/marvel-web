@@ -126,15 +126,6 @@ const Footer = () => {
                 Sampada Shelf
               </Button>
             </Link>
-            <Link
-              href={"https://www.npmjs.com/package/@marvel/ui/ui"}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button variant="text" right={MdOpenInNew}>
-                Marvel&apos;s UI Library
-              </Button>
-            </Link>
           </div>
         </div>
       </div>

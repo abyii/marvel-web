@@ -9,6 +9,11 @@ export type ArticleFormData = {
   courseIds?: string[];
 };
 
+export type ReportFormData = {
+  title: string;
+  content: string;
+};
+
 export type CourseFormData = {
   courseCode?: string;
   courseDuration: string;

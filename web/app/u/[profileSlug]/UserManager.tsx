@@ -4,34 +4,32 @@ import { Paper } from "@marvel/ui/ui";
 import { FullScreenDialog, Button } from "@marvel/ui/ui";
 
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import {
   AiOutlineMinusCircle as MinusIcon,
   AiOutlinePlusCircle as PlusIcon,
 } from "react-icons/ai";
-import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import axios, { AxiosError } from "axios";
 import { Scope, ScopeEnum } from "@prisma/client";
+import { manageScope } from "./actions";
 
 const Manager = ({ dude }: { dude: any }) => {
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   const session = useSession();
   const sessionUser = session?.data?.user;
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
-  const { mutate: sendMutation, isPending } = useMutation({
-    mutationFn: async (args: { action: "add" | "remove"; scope: ScopeEnum }) =>
-      (
-        await axios.post(
-          `/api/people/manage-scope?slug=${dude?.slug}&scope=${args.scope}&action=${args.action}`
-        )
-      ).data,
-    onError: (e: AxiosError) => alert(e?.response?.data?.["message"]),
-    onSuccess: () => {
-      router.refresh();
-    },
-  });
+  const handleAction = async (action: "add" | "remove", scope: ScopeEnum) => {
+    startTransition(async () => {
+      const response = await manageScope(dude?.slug, action, scope);
+      if (response.success) {
+        router.refresh();
+      } else {
+        alert(response.message);
+      }
+    });
+  };
 
   if (
     sessionUser?.scope?.map((s) => s.scope)?.includes("CRDN") ||
@@ -62,12 +60,10 @@ const Manager = ({ dude }: { dude: any }) => {
                       shadow
                       className="rounded-lg pl-5 pt-5 min-h-[60px] mt-5"
                     >
-                      {dude?.scope?.map((s: Scope, i) => (
+                      {dude?.scope?.map((s: Scope, i: number) => (
                         <Button
                           key={i}
-                          onPress={() =>
-                            sendMutation({ action: "remove", scope: s?.scope })
-                          }
+                          onPress={() => handleAction("remove", s?.scope)}
                           variant="outlined"
                           className="mr-5 mb-5 inline-flex items-center gap-2"
                         >
@@ -85,13 +81,11 @@ const Manager = ({ dude }: { dude: any }) => {
                           ? ["CRDN", "ADMIN"]
                           : []),
                       ].map(
-                        (s: ScopeEnum, i) =>
-                          !dude?.scope?.map((s) => s.scope)?.includes(s) && (
+                        (s: ScopeEnum, i: number) =>
+                          !dude?.scope?.map((s: any) => s.scope)?.includes(s) && (
                             <Button
                               key={i}
-                              onPress={() =>
-                                sendMutation({ action: "add", scope: s })
-                              }
+                              onPress={() => handleAction("add", s)}
                               variant="outlined"
                               className="mr-5 mb-5 inline-flex items-center gap-2"
                             >

@@ -3,13 +3,12 @@
 import { FullScreenDialog, Button } from "@marvel/ui/ui";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import axios, { AxiosError } from "axios";
 import { ArticleFormData } from "../../../../types";
 import { TypeOfArticle, ScopeEnum } from "@prisma/client";
 import ArticleForm from "../../../../components/forms/ArticleForm";
+import { createArticle } from "../actions";
 
 const Writer = ({ authorSlug }: { authorSlug: string }) => {
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
@@ -23,6 +22,7 @@ const Writer = ({ authorSlug }: { authorSlug: string }) => {
   });
   const [formType, setFormType] = useState<TypeOfArticle>("BLOG");
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     setFormData({
@@ -34,20 +34,17 @@ const Writer = ({ authorSlug }: { authorSlug: string }) => {
     });
   }, [formType]);
 
-  const { mutate: sendMutation, isPending: isCreateLoading } = useMutation({
-    mutationFn: async () =>
-      (
-        await axios.post(`/api/article/create?type=${formType}`, {
-          ...formData,
-        })
-      ).data,
-    onError: (e: AxiosError) =>
-      alert(e?.response?.data?.["message"] || "Something went wrong."),
-    onSuccess: () => {
-      router.refresh();
-      setDialogOpen(false);
-    },
-  });
+  const handleCreateArticle = () => {
+    startTransition(async () => {
+      const response = await createArticle(formType, formData);
+      if (response.success) {
+        router.refresh();
+        setDialogOpen(false);
+      } else {
+        alert(response.message);
+      }
+    });
+  };
 
   if (sessionUser?.slug == authorSlug) {
     return (
@@ -91,11 +88,12 @@ const Writer = ({ authorSlug }: { authorSlug: string }) => {
                 formData={formData}
                 setFormData={setFormData}
                 typeOfArticle={formType}
-                onSubmit={sendMutation}
+                onSubmit={handleCreateArticle}
                 submitDisabled={
-                  isCreateLoading ||
+                  isPending ||
                   (formType === "RESOURCE" && !formData?.courseIds?.length)
                 }
+                isSubmitLoading={isPending}
                 submitLabel="Create Article"
               />
             </div>

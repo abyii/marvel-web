@@ -1,48 +1,66 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { SANITIZE_OPTIONS } from "@marvel/ui/utils";
-import sanitize from "sanitize-html";
-import dbClient from "../../../utils/dbConnector";
+"use server";
+
+import "server-only";
+
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]";
 import { v2 as cloudinary } from "cloudinary";
-import { ScopeEnum } from "@prisma/client";
-import { EventFormData } from "../../../types";
+import { revalidatePath } from "next/cache";
+import sanitize from "sanitize-html";
+
+import { authOptions } from "../../pages/api/auth/[...nextauth]";
+import dbClient from "../../utils/dbConnector";
+import { EventFormData } from "../../types";
+import { SANITIZE_OPTIONS } from "@marvel/ui/utils";
 import { supabaseStorageClient } from "@marvel/ui/utils/supabaseStorageClient";
+import { ScopeEnum } from "@prisma/client";
 
-export default async function create_event(
-  req: NextApiRequest & { url: string },
-  res: NextApiResponse
-) {
+type ActionResponse<T = void> = {
+  success: boolean;
+  message: string;
+  data?: T;
+};
+
+cloudinary.config({
+  cloud_name: process.env.CLDNRY_CLOUD_NAME,
+  api_key: process.env.CLDNRY_API_KEY,
+  api_secret: process.env.CLDNRY_API_SECRET,
+  secure: true,
+});
+
+export async function createEvent(
+  formData: EventFormData
+): Promise<ActionResponse> {
   try {
-    cloudinary.config({
-      cloud_name: process.env.CLDNRY_CLOUD_NAME,
-      api_key: process.env.CLDNRY_API_KEY,
-      api_secret: process.env.CLDNRY_API_SECRET,
-      secure: true,
-    });
-
-    const session = await getServerSession(req, res, authOptions);
-    const formData: EventFormData = req.body;
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return { success: false, message: "Authentication required." };
+    }
 
     const condition = ["ADMIN", "CRDN"].some((s) =>
       session?.user?.scope?.map((s) => s.scope)?.includes(s as ScopeEnum)
     );
 
-    if (!condition) return res.status(403).json({ message: "Access denied" });
+    if (!condition) {
+      return { success: false, message: "Access denied" };
+    }
 
     const cleanContent = sanitize(formData.description, SANITIZE_OPTIONS);
 
     if (
-      //@ts-ignore
-      formData?.eventStartTime > formData?.eventEndTime ||
-      //@ts-ignore
-      formData?.registrationStartTime > formData?.registrationEndTime ||
-      //@ts-ignore
-      formData?.eventStartTime > new Date()
+      (formData?.eventStartTime &&
+        formData?.eventEndTime &&
+        new Date(formData?.eventStartTime) > new Date(formData?.eventEndTime)) ||
+      (formData?.registrationStartTime &&
+        formData?.registrationEndTime &&
+        new Date(formData?.registrationStartTime) >
+          new Date(formData?.registrationEndTime)) ||
+      (formData?.eventStartTime &&
+        new Date(formData?.eventStartTime) < new Date())
     ) {
-      return res.status(400).json({
+      return {
+        success: false,
         message: "Timings aren't right.",
-      });
+      };
     }
 
     const createdEvent = await dbClient.event.create({
@@ -102,14 +120,13 @@ export default async function create_event(
       },
     });
 
-    return res.status(201).json({
-      message: `event created successfully`,
-    });
+    revalidatePath("/events");
+
+    return { success: true, message: "Event created successfully" };
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({
-      message: `Couldn't create event`,
-      error: error?.message,
-    });
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to create event",
+    };
   }
 }

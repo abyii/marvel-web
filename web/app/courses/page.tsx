@@ -3,8 +3,11 @@ import { CourseCard } from "../../components/Cards";
 import dbClient from "../../utils/dbConnector";
 import { Window } from "@marvel/ui/ui";
 import CourseCreator from "./CourseCreator";
+import { cache } from "react";
 
-const getCourseList = async () => {
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
+const getCourseList = cache(async () => {
   const courseList = await dbClient.course.findMany({
     select: {
       courseCode: true,
@@ -14,7 +17,7 @@ const getCourseList = async () => {
     },
   });
   return courseList;
-};
+});
 
 export const metadata: Metadata = {
   title: "List of all Courses. | UVCE MARVEL",
@@ -50,8 +53,8 @@ export default async function page() {
         <p className="w-full max-w-2xl text-lg py-12 text-p-0 dark:text-p-9 px-3">
           An exhaustive list of courses across five domains at MARVEL:
           Artificial Intelligence & Machine Learning, Internet of Things, Cloud
-          Computing and Cybersecurity, Design & Prototyping, and Renewable
-          Energy Tech.
+          Computing and Cybersecurity, Design & Prototyping, Renewable
+          Energy Tech, and Aviation.
         </p>
         <div className="w-full flex justify-end">
           <CourseCreator />

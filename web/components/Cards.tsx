@@ -107,7 +107,7 @@ export const ReportCard = ({ data: d, className = null, ...props }: any) => {
         <p className="w-full text-p-4 dark:text-p-5 text-sm whitespace-nowrap">
           {new Date(d?.createdAt).toLocaleDateString("en-IN")}
         </p>
-        <h3 className="text-2xl mt-2">{d?.title}</h3>
+        <h3 className="text-2xl mt-2">{d?.title || "No Title"}</h3>
       </Paper>
     </Link>
   );

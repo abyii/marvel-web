@@ -82,6 +82,9 @@ model Work {
   searchTerms  String?
   rankingScore Int     @default(1)
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([courseCode, name, searchTerms])
 }
 

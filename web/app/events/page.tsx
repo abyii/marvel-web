@@ -1,22 +1,32 @@
-"use client";
 import { Window } from "@marvel/ui/ui";
-import { LoadingPulser, Button } from "@marvel/ui/ui";
 import EventCreatingForm from "./EventCreator";
 import { EventCard } from "../../components/Cards";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import axios from "axios";
-import React from "react";
+import dbClient from "../../utils/dbConnector";
 
-const Page: React.FC<any> = ({ params }) => {
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteQuery({
-      queryKey: ["event_list"],
-      initialPageParam: 0,
-      queryFn: async ({ pageParam }) =>
-        (await axios.get(`/api/event/search?skip=${pageParam}`)).data?.data,
-      getNextPageParam: (lastPage, pages) =>
-        lastPage?.length == 12 ? pages?.length * 12 : null,
-    });
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+
+const getEvents = async () => {
+  const events = await dbClient.event.findMany({
+    orderBy: {
+      eventStartTime: "desc",
+    },
+    select:{
+        id: true,
+        title: true,
+        typeOfEvent: true,
+        caption: true,
+        coverPhoto: true,
+        eventStartTime: true,
+        eventEndTime: true,
+        registrationStartTime: true,
+        registrationEndTime: true,
+    }
+  });
+  return events;
+};
+
+const Page = async () => {
+  const events = await getEvents();
 
   return (
     <Window className={"pt-5 md:pt-12 pb-40"}>
@@ -33,22 +43,9 @@ const Page: React.FC<any> = ({ params }) => {
         </div>
         <EventCreatingForm />
         <div className="flex w-full gap-5 flex-wrap mt-5">
-          {isLoading ? (
-            <div className="w-full flex justify-center">
-              <LoadingPulser />
-            </div>
-          ) : (
-            data?.pages?.flat()?.map((d, i) => <EventCard data={d} key={i} />)
-          )}
-          <div className="w-full flex justify-center">
-            {isFetchingNextPage ? (
-              <p className="text-p-6 text-sm">Loading...</p>
-            ) : hasNextPage ? (
-              <Button onPress={() => fetchNextPage()}>Load more</Button>
-            ) : (
-              !isLoading && <p className="text-p-6 text-sm">That&apos;s it. </p>
-            )}
-          </div>
+          {events.map((d, i) => (
+            <EventCard data={d as any} key={i} />
+          ))}
         </div>
       </div>
     </Window>

@@ -1,19 +1,19 @@
 "use client";
 
 import { FullScreenDialog, Button } from "@marvel/ui/ui";
-
 import { useSession } from "next-auth/react";
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import axios, { AxiosError } from "axios";
 import { EventFormData } from "../../../types";
 import { Event, ScopeEnum } from "@prisma/client";
 import EventForm from "../../../components/forms/EventForm";
+import { updateEvent } from "./actions";
 
 const EventEditor = ({ event }: { event: Event }) => {
   const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   const sessionUser = useSession()?.data?.user;
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<EventFormData>({
     title: event.title || "",
     caption: event.caption || "",
@@ -36,23 +36,19 @@ const EventEditor = ({ event }: { event: Event }) => {
     actionText: event.actionText || "",
   });
   const router = useRouter();
-  const queryClient = useQueryClient();
 
-  const { mutate: sendMutation, isPending: isUpdateLoading } = useMutation({
-    mutationFn: async () =>
-      (
-        await axios.post(`/api/event/edit?id=${event?.id}`, {
-          ...formData,
-        })
-      ).data,
-    onError: (e: AxiosError) =>
-      alert(e?.response?.data?.["message"] || "Something went wrong."),
-    onSuccess: () => {
-      router.refresh();
-      queryClient.invalidateQueries(["event_list"] as any);
-      setDialogOpen(false);
-    },
-  });
+  const handleUpdate = async () => {
+    setError(null);
+    startTransition(async () => {
+      const response = await updateEvent(event.id, formData);
+      if (response.success) {
+        router.refresh();
+        setDialogOpen(false);
+      } else {
+        setError(response.message);
+      }
+    });
+  };
 
   if (
     ["CRDN", "ADMIN"].some((s) =>
@@ -62,6 +58,7 @@ const EventEditor = ({ event }: { event: Event }) => {
     return (
       <>
         <div>
+          {error && <div className="text-red-500 mb-4">{error}</div>}
           <Button
             variant="outlined"
             onPress={() => {
@@ -82,8 +79,8 @@ const EventEditor = ({ event }: { event: Event }) => {
                 mode="edit"
                 formData={formData}
                 setFormData={setFormData}
-                onSubmit={sendMutation}
-                submitDisabled={isUpdateLoading}
+                onSubmit={handleUpdate}
+                submitDisabled={isPending}
               />
             </div>
           </FullScreenDialog>

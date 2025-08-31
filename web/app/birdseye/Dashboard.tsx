@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { getBirdseyeData } from "./actions";
 
 const tabs = {
   report: "Reports to review",
@@ -43,11 +44,10 @@ const Dashboard = () => {
     queryKey: [selectedTab, "birdseye"],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) =>
-      (
-        await axios.get(
-          `/api/${selectedTab}/search?reviewStatus=PENDING&scope=ADMIN,CRDN&skip=${pageParam}`
-        )
-      ).data?.data,
+      getBirdseyeData({
+        category: selectedTab,
+        skip: pageParam,
+      }),
     getNextPageParam: (lastPage, pages) =>
       lastPage?.length == 12 ? pages?.length * 12 : null,
   });

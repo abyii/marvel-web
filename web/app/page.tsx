@@ -22,6 +22,11 @@ const tracks: TrackDescription[] = [
         variant: "outlined",
       },
       {
+        link: "/grads",
+        buttonText: "View Graduates",
+        variant: "outlined",
+      },
+      {
         link: "https://bit.ly/marvelstudent",
         buttonText: "Apply Now",
         variant: "standard",
@@ -87,6 +92,8 @@ const tracks: TrackDescription[] = [
     ],
   },
 ];
+
+export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
 
 export default function page() {
   return (
