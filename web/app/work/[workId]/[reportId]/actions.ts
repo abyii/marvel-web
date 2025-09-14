@@ -271,7 +271,10 @@ export async function reviewReport(
       });
     }
 
-    revalidatePath(`/work/${existingReport?.workId}`, 'layout');
+    revalidatePath(`/work/${existingReport?.workId}`);
+    if(!existingReport.isOverview){
+      revalidatePath(`/work/${existingReport?.workId}/${existingReport?.id}`);
+    }
 
     return { success: true, message: `level report updated successfully` };
   } catch (error) {
