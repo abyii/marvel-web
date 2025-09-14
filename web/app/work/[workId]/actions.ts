@@ -171,6 +171,7 @@ export async function deleteWork(workId: string): Promise<ActionResponse> {
     await dbClient.peopleOnWork?.deleteMany({ where: { workId: work?.id } });
     await dbClient?.work?.delete({ where: { id: work?.id } });
 
+    revalidatePath(`/work/${workId}`);
     if (work?.People) {
       work.People?.forEach((p: any) =>
         revalidatePath(`/u/${p?.person?.slug as string}/works`)

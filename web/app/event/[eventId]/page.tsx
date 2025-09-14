@@ -38,43 +38,11 @@ export async function generateMetadata(props): Promise<Metadata> {
   const params = await props.params;
   const event = await getEvent(params?.eventId);
 
-  const og_url = new URL(`${process.env.NEXTAUTH_URL}/api/og/event`);
-  og_url.searchParams.append("title", event?.title as string);
-  og_url.searchParams.append("caption", event?.caption as string);
-  og_url.searchParams.append("typeOfEvent", event?.typeOfEvent as string);
-  og_url.searchParams.append(
-    "startTime",
-    event?.eventStartTime?.toLocaleDateString("en-IN", DATE_OPTIONS) as string
-  );
-  og_url.searchParams.append(
-    "coverPhoto",
-    getCroppedCloudinaryImage(
-      event?.coverPhoto as string,
-      event?.typeOfEvent as any
-    )
-  );
-
   return {
     title: `${
       event?.title
     } | ${event?.typeOfEvent?.toLowerCase()} at UVCE MARVEL`,
     description: event?.caption,
-    openGraph: {
-      type: "website",
-      title: `${
-        event?.title
-      } | ${event?.typeOfEvent?.toLowerCase()} at UVCE MARVEL`,
-      description: event?.caption,
-      images: [
-        {
-          url: og_url,
-          secureUrl: og_url,
-          type: "image/jpeg",
-          width: 800,
-          height: 800,
-        },
-      ],
-    },
   } as Metadata;
 }
 
