@@ -11,15 +11,15 @@ export const size = {
 };
 export const contentType = "image/png";
 
-const fontData = await readFile(
-  join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
-)
 
 export default async function Image({
   params,
 }: {
   params: { profileSlug: string };
 }) {
+  const fontData = await readFile(
+    join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
+  )
   const person = await dbClient.people.findUnique({
     where: {
       slug: params.profileSlug,

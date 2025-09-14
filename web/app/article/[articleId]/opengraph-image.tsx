@@ -1,6 +1,5 @@
 import { ImageResponse } from "@vercel/og";
 import dbClient from "../../../utils/dbConnector";
-import { cache } from "react";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -11,7 +10,7 @@ export const size = {
 };
 export const contentType = "image/png";
 
-const getArticle = cache(async (id: string) => {
+const getArticle = async (id: string) => {
     try {
       const article = await dbClient.article.findUniqueOrThrow({
         where: {
@@ -28,15 +27,14 @@ const getArticle = cache(async (id: string) => {
     } catch (error) {
       return null;
     }
-  });
+  };
 
-const fontData = await readFile(
-  join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
-)
-
-export default async function Image({ params }: { params: { articleId: string } }) {
+  
+  export default async function Image({ params }: { params: { articleId: string } }) {
     const article = await getArticle(params.articleId);
-
+    const fontData = await readFile(
+      join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
+    )
     if (!article) {
         return new Response(`Not found`, {
             status: 404,

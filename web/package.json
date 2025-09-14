@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "cross-env PORT=4200 next dev --turbopack",
     "build": "prisma generate && next build",
-    "start": "next start",
+    "start": "cross-env PORT=4200 next start",
     "lint": "next lint"
   },
   "dependencies": {

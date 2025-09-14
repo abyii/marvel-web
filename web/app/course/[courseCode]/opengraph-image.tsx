@@ -1,6 +1,5 @@
 import { ImageResponse } from "@vercel/og";
 import dbClient from "../../../utils/dbConnector";
-import { cache } from "react";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -11,7 +10,7 @@ export const size = {
 };
 export const contentType = "image/png";
 
-const getCourse = cache(async (id: string) => {
+const getCourse = async (id: string) => {
   try {
     const course = await dbClient.course.findUnique({
       where: {
@@ -28,11 +27,8 @@ const getCourse = cache(async (id: string) => {
   } catch (error) {
     return null;
   }
-});
+};
 
-const fontData = await readFile(
-  join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
-)
 
 export default async function Image({
   params,
@@ -40,7 +36,10 @@ export default async function Image({
   params: { courseCode: string };
 }) {
   const course = await getCourse(params.courseCode);
-
+  const fontData = await readFile(
+    join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
+  )
+  
   if (!course) {
     return new Response(`Not found`, {
       status: 404,

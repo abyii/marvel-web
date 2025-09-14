@@ -11,11 +11,11 @@ export const size = {
 };
 export const contentType = "image/png";
 
-const fontData = await readFile(
-  join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
-)
 
 export default async function Image({ params }: { params: { workId: string } }) {
+  const fontData = await readFile(
+    join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
+  )
   const work = await dbClient.work.findUnique({
     where: {
       id: params.workId,
