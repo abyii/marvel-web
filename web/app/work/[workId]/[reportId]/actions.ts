@@ -107,6 +107,11 @@ export async function createReport(
     });
 
     revalidatePath(`/work/${work?.id}`, 'layout');
+    if(createdReport?.isOverview){
+      revalidatePath(`/work/${work?.id}`);
+    }else{
+      revalidatePath(`/work/${work?.id}/${createdReport?.id}`);
+    }
 
     return {
       success: true,
@@ -191,6 +196,11 @@ export async function updateReport(
     });
 
     revalidatePath(`/work/${existingReport?.workId}`, 'layout');
+    if(existingReport?.isOverview){
+      revalidatePath(`/work/${existingReport?.workId}`);
+    }else{
+      revalidatePath(`/work/${existingReport?.workId}/${existingReport?.id}`);
+    }
 
     return { success: true, message: `level report updated successfully` };
   } catch (error) {
