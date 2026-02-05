@@ -6,6 +6,7 @@ import { Button, LoadingPulser, Paper, TextField } from "@marvel/ui/ui/";
 import { MarkdownEditor } from "../MarkdownEditor";
 import ImageUploader from "../ImageUploader";
 import { getCourseList } from "../../app/u/[profileSlug]/actions";
+import { useFileUpload } from "../../utils/useFileUpload";
 
 type ArticleFormProps = {
   formData: ArticleFormData;
@@ -28,6 +29,7 @@ const ArticleForm = ({
 }: ArticleFormProps) => {
   const [isCourseListLoading, startCourseListTransition] = useTransition();
   const [courseList, setCourseList] = useState<Course[]>([]);
+  const { uploadFile } = useFileUpload({ maxSize: 50 * 1024 * 1024 });
 
   useEffect(() => {
     if (typeOfArticle === "RESOURCE") {
@@ -87,6 +89,7 @@ const ArticleForm = ({
         onChange={(e) =>
           setFormData((p: any) => ({ ...p, content: e?.target?.value }))
         }
+        onFileSelected={uploadFile}
       />
       <hr className="w-full my-5" />
       <ImageUploader

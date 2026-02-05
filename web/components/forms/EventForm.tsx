@@ -6,6 +6,7 @@ import { TypeOfEvent } from "@prisma/client";
 import { TextField, Button } from "@marvel/ui/ui";
 import { MarkdownEditor } from "../MarkdownEditor";
 import ImageUploader from "../ImageUploader";
+import { useFileUpload } from "../../utils/useFileUpload";
 
 type EventFormProps = {
   formData: EventFormData;
@@ -37,6 +38,7 @@ const EventForm = ({
   mode,
   ...props
 }: EventFormProps) => {
+  const { uploadFile } = useFileUpload({ maxSize: 50 * 1024 * 1024 });
   return (
     <form
       className="flex flex-col gap-5"
@@ -108,6 +110,7 @@ const EventForm = ({
             description: e?.target?.value,
           }))
         }
+        onFileSelected={uploadFile}
       />
       <hr className="w-full" />
       <ImageUploader
