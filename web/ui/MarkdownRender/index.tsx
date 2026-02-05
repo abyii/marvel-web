@@ -53,9 +53,13 @@ export const MarkdownRender = memo(
               {children}
             </a>
           ),
-          img: ({ ...props }) => (
-            <img className="my-5 rounded-lg w-full" {...props} />
-          ),
+          img: ({ ...props }) => {
+            // Only render img if src is provided and not empty
+            if (!props.src) {
+              return null;
+            }
+            return <img className="my-5 rounded-lg w-full" {...props} />;
+          },
           iframe: ({ ...props }) => (
             <iframe
               className="w-full max-h-[500px] rounded-lg bg-p-0"
