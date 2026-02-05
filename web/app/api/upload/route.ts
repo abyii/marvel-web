@@ -123,3 +123,70 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    console.log("Delete API called");
+
+    // Check if Cloudinary is configured
+    if (
+      !process.env.CLDNRY_CLOUD_NAME ||
+      !process.env.CLDNRY_API_KEY ||
+      !process.env.CLDNRY_API_SECRET
+    ) {
+      console.error("Cloudinary environment variables not configured");
+      return NextResponse.json(
+        { error: "Server misconfigured: Missing Cloudinary credentials" },
+        { status: 500 }
+      );
+    }
+
+    const { publicId } = await request.json();
+
+    if (!publicId) {
+      return NextResponse.json(
+        { error: "No publicId provided" },
+        { status: 400 }
+      );
+    }
+
+    console.log("Deleting from Cloudinary:", publicId);
+
+    // Delete from Cloudinary
+    return new Promise<NextResponse>((resolve) => {
+      cloudinary.uploader.destroy(publicId, (error, result) => {
+        if (error) {
+          console.error("Cloudinary delete error:", error);
+          resolve(
+            NextResponse.json(
+              {
+                error: `Delete failed: ${error.message}`,
+              },
+              { status: 500 }
+            )
+          );
+        } else {
+          console.log("File deleted successfully from Cloudinary:", result);
+          resolve(
+            NextResponse.json(
+              {
+                success: true,
+                message: "File deleted from Cloudinary",
+                result,
+              },
+              { status: 200 }
+            )
+          );
+        }
+      });
+    });
+  } catch (error) {
+    console.error("File delete error:", error);
+    return NextResponse.json(
+      {
+        error: `Delete failed: ${error instanceof Error ? error.message : String(error)}`,
+      },
+      { status: 500 }
+    );
+  }
+}
