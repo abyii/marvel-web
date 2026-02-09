@@ -8,11 +8,15 @@ import {
   TextField,
   LoadingPulser,
   Button,
+  Dialog,
 } from "@marvel/ui/ui";
 
 import { MarkdownEditor } from "../../../components/MarkdownEditor";
 import { updateReport } from "./[reportId]/actions";
 import { ReportFormData } from "../../../types";
+import { deleteCloudinaryUrls } from "../../../utils/cloudinaryUtils";
+import { useCloudinaryDeletionTracker } from "../../../utils/useCloudinaryDeletionTracker";
+import { scrollToDialogTop } from "../../../utils/scrollUtils";
 
 const ReportEditor = ({ report, work }) => {
   const sessionUser = useSession().data?.user;
@@ -23,17 +27,44 @@ const ReportEditor = ({ report, work }) => {
     title: report?.title,
     content: report?.content,
   });
+  const { getDeletionCandidates, resetTracking } =
+    useCloudinaryDeletionTracker(formData.content || "");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingDeleteUrls, setPendingDeleteUrls] = useState<string[]>([]);
 
-  const handleUpdate = () => {
-    startTransition(async () => {
-      const response = await updateReport(report.id, formData);
-      if (response.success) {
-        setChanged(false);
-        setModalOpen(false);
-      } else {
-        alert(response.message);
-      }
+  const handleUpdate = () =>
+    new Promise<boolean>((resolve) => {
+      startTransition(async () => {
+        const response = await updateReport(report.id, formData);
+        if (response.success) {
+          setChanged(false);
+          setModalOpen(false);
+        } else {
+          alert(response.message);
+        }
+        resolve(Boolean(response.success));
+      });
     });
+
+  const submitWithCleanup = async (urlsToDelete: string[]) => {
+    const success = await handleUpdate();
+    if (success) {
+      if (urlsToDelete.length > 0) {
+        await deleteCloudinaryUrls(urlsToDelete);
+      }
+      resetTracking();
+    }
+  };
+
+  const handleSubmit = async () => {
+    const toDelete = getDeletionCandidates();
+    if (toDelete.length > 0) {
+      scrollToDialogTop();
+      setPendingDeleteUrls(toDelete);
+      setDeleteDialogOpen(true);
+      return;
+    }
+    await submitWithCleanup([]);
   };
 
   if (
@@ -85,7 +116,7 @@ const ReportEditor = ({ report, work }) => {
                     className={`float-right m-5 ${
                       isPending ? "animate-pulse" : "animate-none"
                     }`}
-                    onPress={handleUpdate}
+                    onPress={handleSubmit}
                   >
                     <span className="flex items-center gap-3">
                       {isPending && <LoadingPulser className="h-5" />}
@@ -93,6 +124,34 @@ const ReportEditor = ({ report, work }) => {
                     </span>
                   </Button>
                 </div>
+                <Dialog
+                  open={deleteDialogOpen}
+                  onClose={() => setDeleteDialogOpen(false)}
+                >
+                  <h3 className="text-2xl mb-2">Delete unused images?</h3>
+                  <p className="text-sm mb-5">
+                    {pendingDeleteUrls.length} image
+                    {pendingDeleteUrls.length === 1 ? "" : "s"} will be
+                    permanently deleted as you removed url.
+                  </p>
+                  <div className="flex gap-3 justify-end">
+                    <Button
+                      variant="outlined"
+                      onPress={() => setDeleteDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onPress={async () => {
+                        setDeleteDialogOpen(false);
+                        await submitWithCleanup(pendingDeleteUrls);
+                        setPendingDeleteUrls([]);
+                      }}
+                    >
+                      Submit and Delete
+                    </Button>
+                  </div>
+                </Dialog>
               </form>
             </div>
           </FullScreenDialog>

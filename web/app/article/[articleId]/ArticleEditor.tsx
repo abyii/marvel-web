@@ -26,19 +26,21 @@ const ArticleEditor = ({ article }: { article: any }) => {
     coverPhoto: article?.coverPhoto,
   });
 
-  const handleUpdate = async () => {
-    setError(null);
-    startTransition(async () => {
-      console.log(formData)
-      const response = await updateArticle(article.id, formData);
-      if (response.success) {
-        router.refresh();
-        setModalOpen(false);
-      } else {
-        setError(response.message);
-      }
+  const handleUpdate = () =>
+    new Promise<boolean>((resolve) => {
+      setError(null);
+      startTransition(async () => {
+        console.log(formData);
+        const response = await updateArticle(article.id, formData);
+        if (response.success) {
+          router.refresh();
+          setModalOpen(false);
+        } else {
+          setError(response.message);
+        }
+        resolve(Boolean(response.success));
+      });
     });
-  };
 
   const handleDelete = async () => {
     setError(null);

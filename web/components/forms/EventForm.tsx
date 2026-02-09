@@ -3,14 +3,18 @@
 import React from "react";
 import { EventFormData } from "../../types";
 import { TypeOfEvent } from "@prisma/client";
-import { TextField, Button } from "@marvel/ui/ui";
+import { TextField, Button, Dialog } from "@marvel/ui/ui";
 import { MarkdownEditor } from "../MarkdownEditor";
 import ImageUploader from "../ImageUploader";
+import { useFileUpload } from "../../utils/useFileUpload";
+import { deleteCloudinaryUrls } from "../../utils/cloudinaryUtils";
+import { useCloudinaryDeletionTracker } from "../../utils/useCloudinaryDeletionTracker";
+import { scrollToDialogTop } from "../../utils/scrollUtils";
 
 type EventFormProps = {
   formData: EventFormData;
   setFormData: (args: EventFormData | any) => void;
-  onSubmit?: () => void;
+  onSubmit?: () => Promise<boolean>;
   submitDisabled?: boolean;
   mode: "create" | "edit";
 };
@@ -37,12 +41,41 @@ const EventForm = ({
   mode,
   ...props
 }: EventFormProps) => {
+  const { uploadFile } = useFileUpload({ maxSize: 50 * 1024 * 1024 });
+  const { getDeletionCandidates, resetTracking } =
+    useCloudinaryDeletionTracker(formData?.description || "");
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [pendingDeleteUrls, setPendingDeleteUrls] = React.useState<string[]>(
+    []
+  );
+
+  const submitWithCleanup = async (urlsToDelete: string[]) => {
+    if (!onSubmit) return;
+    const success = await onSubmit();
+    if (success) {
+      if (urlsToDelete.length > 0) {
+        await deleteCloudinaryUrls(urlsToDelete);
+      }
+      resetTracking();
+    }
+  };
+
+  const handleSubmit = async () => {
+    const toDelete = getDeletionCandidates();
+    if (toDelete.length > 0) {
+      scrollToDialogTop();
+      setPendingDeleteUrls(toDelete);
+      setDeleteDialogOpen(true);
+      return;
+    }
+    await submitWithCleanup([]);
+  };
   return (
     <form
       className="flex flex-col gap-5"
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit && onSubmit();
+        handleSubmit();
       }}
     >
       <label className="text-2xl" htmlFor="event_type">
@@ -108,6 +141,7 @@ const EventForm = ({
             description: e?.target?.value,
           }))
         }
+        onFileSelected={uploadFile}
       />
       <hr className="w-full" />
       <ImageUploader
@@ -300,6 +334,31 @@ const EventForm = ({
           Submit
         </Button>
       </div>
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <h3 className="text-2xl mb-2">Delete unused images?</h3>
+        <p className="text-sm mb-5">
+          {pendingDeleteUrls.length} image
+          {pendingDeleteUrls.length === 1 ? "" : "s"} will be permanently deleted
+          from Cloudinary after you submit.
+        </p>
+        <div className="flex gap-3 justify-end">
+          <Button
+            variant="outlined"
+            onPress={() => setDeleteDialogOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            onPress={async () => {
+              setDeleteDialogOpen(false);
+              await submitWithCleanup(pendingDeleteUrls);
+              setPendingDeleteUrls([]);
+            }}
+          >
+            Submit and Delete
+          </Button>
+        </div>
+      </Dialog>
     </form>
   );
 };

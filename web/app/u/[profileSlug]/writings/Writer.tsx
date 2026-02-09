@@ -34,17 +34,19 @@ const Writer = ({ authorSlug }: { authorSlug: string }) => {
     });
   }, [formType]);
 
-  const handleCreateArticle = () => {
-    startTransition(async () => {
-      const response = await createArticle(formType, formData);
-      if (response.success) {
-        router.refresh();
-        setDialogOpen(false);
-      } else {
-        alert(response.message);
-      }
+  const handleCreateArticle = () =>
+    new Promise<boolean>((resolve) => {
+      startTransition(async () => {
+        const response = await createArticle(formType, formData);
+        if (response.success) {
+          router.refresh();
+          setDialogOpen(false);
+        } else {
+          alert(response.message);
+        }
+        resolve(Boolean(response.success));
+      });
     });
-  };
 
   if (sessionUser?.slug == authorSlug) {
     return (

@@ -30,17 +30,19 @@ const EventCreatingForm = () => {
   });
   const router = useRouter();
 
-  const handleSubmit = async () => {
-    startTransition(async () => {
-      const response = await createEvent(formData);
-      if (response.success) {
-        setDialogOpen(false);
-        router.refresh();
-      } else {
-        alert(response.message);
-      }
+  const handleSubmit = () =>
+    new Promise<boolean>((resolve) => {
+      startTransition(async () => {
+        const response = await createEvent(formData);
+        if (response.success) {
+          setDialogOpen(false);
+          router.refresh();
+        } else {
+          alert(response.message);
+        }
+        resolve(Boolean(response.success));
+      });
     });
-  };
 
   if (
     ["CRDN", "ADMIN"].some((s) =>
