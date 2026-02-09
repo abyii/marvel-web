@@ -78,3 +78,27 @@ export const deleteFromCloudinary = async (
     return false;
   }
 };
+
+export const deleteCloudinaryUrls = async (
+  urls: string[]
+): Promise<{ successCount: number; failureCount: number }> => {
+  const uniqueUrls = Array.from(new Set(urls));
+  const deletions = uniqueUrls
+    .map((url) => extractCloudinaryPublicId(url))
+    .filter((publicId): publicId is string => Boolean(publicId))
+    .map((publicId) => deleteFromCloudinary(publicId));
+
+  const results = await Promise.allSettled(deletions);
+  let successCount = 0;
+  let failureCount = 0;
+
+  results.forEach((result) => {
+    if (result.status === "fulfilled" && result.value) {
+      successCount += 1;
+    } else {
+      failureCount += 1;
+    }
+  });
+
+  return { successCount, failureCount };
+};

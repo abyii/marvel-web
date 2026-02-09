@@ -1,13 +1,8 @@
 "use client";
 
 import { TabGroup, Tab, MarkdownRender } from "@marvel/ui/ui/server";
-import { useState, type JSX, useRef, useEffect } from "react";
+import { useState, type JSX, useRef } from "react";
 import { useFileUpload } from "../utils/useFileUpload";
-import {
-  findDeletedUrls,
-  extractCloudinaryPublicId,
-  deleteFromCloudinary,
-} from "../utils/cloudinaryUtils";
 
 type MarkdownEditorProps = JSX.IntrinsicElements["textarea"] & {
   onFileSelected?: (file: File) => Promise<string | null>;
@@ -27,38 +22,6 @@ export const MarkdownEditor = ({
   const [isUploading, setIsUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const previousValueRef = useRef<string>(String(value));
-
-  // Auto-delete from Cloudinary when URLs are removed from markdown
-  useEffect(() => {
-    const currentValue = String(value);
-
-    // Only process if value has changed and is shorter (likely a deletion)
-    if (currentValue.length < previousValueRef.current.length) {
-      const deletedUrls = findDeletedUrls(previousValueRef.current, currentValue);
-
-      if (deletedUrls.length > 0) {
-        console.log("Detected deleted Cloudinary URLs:", deletedUrls);
-
-        // Auto-delete each removed file from Cloudinary
-        deletedUrls.forEach((url) => {
-          const publicId = extractCloudinaryPublicId(url);
-          if (publicId) {
-            console.log("Deleting file from Cloudinary:", publicId);
-            deleteFromCloudinary(publicId).then((success) => {
-              if (success) {
-                console.log("File permanently deleted from Cloudinary:", publicId);
-              } else {
-                console.warn("Failed to delete file from Cloudinary:", publicId);
-              }
-            });
-          }
-        });
-      }
-    }
-
-    previousValueRef.current = currentValue;
-  }, [value]);
 
   const insertTextAtCursor = (text: string) => {
     if (!textareaRef.current) return;
