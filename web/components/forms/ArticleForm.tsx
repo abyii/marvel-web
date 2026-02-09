@@ -2,16 +2,19 @@
 import React, { useEffect, useState, useTransition } from "react";
 import { ArticleFormData } from "../../types";
 import { Course, TypeOfArticle } from "@prisma/client";
-import { Button, LoadingPulser, Paper, TextField } from "@marvel/ui/ui/";
+import { Button, LoadingPulser, Paper, TextField, Dialog } from "@marvel/ui/ui/";
 import { MarkdownEditor } from "../MarkdownEditor";
 import ImageUploader from "../ImageUploader";
 import { getCourseList } from "../../app/u/[profileSlug]/actions";
 import { useFileUpload } from "../../utils/useFileUpload";
+import { deleteCloudinaryUrls } from "../../utils/cloudinaryUtils";
+import { useCloudinaryDeletionTracker } from "../../utils/useCloudinaryDeletionTracker";
+import { scrollToDialogTop } from "../../utils/scrollUtils";
 
 type ArticleFormProps = {
   formData: ArticleFormData;
   setFormData: (args: any) => void;
-  onSubmit?: () => void;
+  onSubmit?: () => Promise<boolean>;
   submitDisabled?: boolean;
   submitLabel?: string;
   isSubmitLoading?: boolean;
@@ -30,6 +33,10 @@ const ArticleForm = ({
   const [isCourseListLoading, startCourseListTransition] = useTransition();
   const [courseList, setCourseList] = useState<Course[]>([]);
   const { uploadFile } = useFileUpload({ maxSize: 50 * 1024 * 1024 });
+  const { getDeletionCandidates, resetTracking } =
+    useCloudinaryDeletionTracker(formData?.content || "");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingDeleteUrls, setPendingDeleteUrls] = useState<string[]>([]);
 
   useEffect(() => {
     if (typeOfArticle === "RESOURCE") {
@@ -41,6 +48,28 @@ const ArticleForm = ({
       });
     }
   }, [typeOfArticle]);
+
+  const submitWithCleanup = async (urlsToDelete: string[]) => {
+    if (!onSubmit) return;
+    const success = await onSubmit();
+    if (success) {
+      if (urlsToDelete.length > 0) {
+        await deleteCloudinaryUrls(urlsToDelete);
+      }
+      resetTracking();
+    }
+  };
+
+  const handleSubmit = async () => {
+    const toDelete = getDeletionCandidates();
+    if (toDelete.length > 0) {
+      scrollToDialogTop();
+      setPendingDeleteUrls(toDelete);
+      setDeleteDialogOpen(true);
+      return;
+    }
+    await submitWithCleanup([]);
+  };
 
   return (
     <form
@@ -156,13 +185,38 @@ const ArticleForm = ({
 
       <div className="w-full flex gap-5 justify-end pb-48 mt-5">
         <Button
-          onPress={() => onSubmit && onSubmit()}
+          onPress={handleSubmit}
           isDisabled={submitDisabled || isCourseListLoading}
           left={isSubmitLoading ? LoadingPulser : undefined}
         >
           {submitLabel}
         </Button>
       </div>
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <h3 className="text-2xl mb-2">Delete unused images?</h3>
+        <p className="text-sm mb-5">
+          {pendingDeleteUrls.length} image
+          {pendingDeleteUrls.length === 1 ? "" : "s"} will be permanently deleted
+          from Cloudinary after you submit.
+        </p>
+        <div className="flex gap-3 justify-end">
+          <Button
+            variant="outlined"
+            onPress={() => setDeleteDialogOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            onPress={async () => {
+              setDeleteDialogOpen(false);
+              await submitWithCleanup(pendingDeleteUrls);
+              setPendingDeleteUrls([]);
+            }}
+          >
+            Submit and Delete
+          </Button>
+        </div>
+      </Dialog>
     </form>
   );
 };

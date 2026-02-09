@@ -41,6 +41,7 @@ export const FullScreenDialog = ({
           "p-5",
           { hidden: !open }
         )}
+        data-fullscreen-dialog="true"
         {...props}
       >
         <div className="flex flex-col items-start w-full h-full max-w-2xl py-20">

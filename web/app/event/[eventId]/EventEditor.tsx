@@ -37,18 +37,20 @@ const EventEditor = ({ event }: { event: Event }) => {
   });
   const router = useRouter();
 
-  const handleUpdate = async () => {
-    setError(null);
-    startTransition(async () => {
-      const response = await updateEvent(event.id, formData);
-      if (response.success) {
-        router.refresh();
-        setDialogOpen(false);
-      } else {
-        setError(response.message);
-      }
+  const handleUpdate = () =>
+    new Promise<boolean>((resolve) => {
+      setError(null);
+      startTransition(async () => {
+        const response = await updateEvent(event.id, formData);
+        if (response.success) {
+          router.refresh();
+          setDialogOpen(false);
+        } else {
+          setError(response.message);
+        }
+        resolve(Boolean(response.success));
+      });
     });
-  };
 
   if (
     ["CRDN", "ADMIN"].some((s) =>
