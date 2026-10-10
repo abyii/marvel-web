@@ -40,18 +40,24 @@ export const authOptions: AuthOptions = {
       });
       if (!existingUser) {
         // if no user, create slug and new user with the available data.
-        let newSlug = slugify(token?.name as string, {
+        const baseSlug = slugify(token?.name as string, {
           lower: true,
           strict: true,
           trim: true,
         });
-        let attempt = 0;
-
-        while (
-          (await dbClient.people.count({ where: { slug: newSlug } })) > 0
-        ) {
-          attempt += 1;
-          newSlug = `${newSlug}-${attempt}`;
+        // one query for every taken `<base>` / `<base>-<n>` slug, then pick
+        // the first free suffix
+        const takenSlugs = new Set(
+          (
+            await dbClient.people.findMany({
+              where: { slug: { startsWith: baseSlug } },
+              select: { slug: true },
+            })
+          ).map((p) => p.slug)
+        );
+        let newSlug = baseSlug;
+        for (let attempt = 1; takenSlugs.has(newSlug); attempt++) {
+          newSlug = `${baseSlug}-${attempt}`;
         }
 
         //populate session with our data

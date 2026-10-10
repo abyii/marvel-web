@@ -1,6 +1,8 @@
 "use server";
 
-import { ReviewStatus, ScopeEnum } from "@prisma/client";
+import { getServerSession } from "next-auth/next";
+
+import { authOptions } from "../pages/api/auth/[...nextauth]";
 import dbClient from "../utils/dbConnector";
 
 type SearchArguments = {
@@ -9,7 +11,13 @@ type SearchArguments = {
   skip: number;
 };
 
+// reports are returned regardless of review status: report pages are public
 export async function searchMarvel(args: SearchArguments) {
+  if (!(await getServerSession(authOptions))) {
+    throw new Error("Sign in to search.");
+  }
+  // client-supplied offset: a negative or fractional skip makes Prisma throw
+  const skip = Math.max(0, Math.trunc(Number(args.skip) || 0));
   switch (args.category) {
     case "people":
       return await dbClient.people.findMany({
@@ -30,8 +38,9 @@ export async function searchMarvel(args: SearchArguments) {
             },
           },
         },
+        orderBy: [{ name: "asc" }, { id: "asc" }],
         take: 12,
-        skip: args.skip || 0,
+        skip,
       });
     case "course":
       return await dbClient.course.findMany({
@@ -58,8 +67,9 @@ export async function searchMarvel(args: SearchArguments) {
           totalLevels: true,
           courseDuration: true,
         },
+        orderBy: [{ courseCode: "asc" }, { id: "asc" }],
         take: 12,
-        skip: args.skip || 0,
+        skip,
       });
     case "event":
       return await dbClient.event.findMany({
@@ -90,8 +100,9 @@ export async function searchMarvel(args: SearchArguments) {
           registrationStartTime: true,
           registrationEndTime: true,
         },
+        orderBy: [{ eventStartTime: "desc" }, { id: "asc" }],
         take: 12,
-        skip: args.skip || 0,
+        skip,
       });
     case "work":
       return await dbClient.work.findMany({
@@ -126,8 +137,9 @@ export async function searchMarvel(args: SearchArguments) {
             },
           },
         },
+        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
         take: 12,
-        skip: args.skip || 0,
+        skip,
       });
     case "report":
       return await dbClient.report.findMany({
@@ -144,8 +156,9 @@ export async function searchMarvel(args: SearchArguments) {
           workId: true,
           createdAt: true,
         },
+        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
         take: 12,
-        skip: args.skip || 0,
+        skip,
       });
     case "article":
       return await dbClient.article.findMany({
@@ -155,8 +168,16 @@ export async function searchMarvel(args: SearchArguments) {
             mode: "insensitive",
           },
         },
+        select: {
+          id: true,
+          title: true,
+          caption: true,
+          typeOfArticle: true,
+          createdAt: true,
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
         take: 12,
-        skip: args.skip || 0,
+        skip,
       });
     default:
       return [];

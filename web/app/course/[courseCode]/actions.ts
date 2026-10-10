@@ -4,12 +4,14 @@ import "server-only";
 
 import { getServerSession } from "next-auth/next";
 import { v2 as cloudinary } from "cloudinary";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { ScopeEnum } from "@prisma/client";
 
 import { authOptions } from "../../../pages/api/auth/[...nextauth]";
 import dbClient from "../../../utils/dbConnector";
 import { CourseFormData } from "../../../types";
+import { cacheTags } from "../../../utils/cache";
+import { getCourseLevelFiles } from "../../../utils/github";
 
 type ActionResponse<T = void> = {
   success: boolean;
@@ -55,6 +57,8 @@ export async function updateCourseMeta(
       return { success: false, message: "Course not found." };
     }
 
+    const levels = await getCourseLevelFiles(formData.repoURL as string);
+
     let coverPhoto: string | null = course.coverPhoto;
     if (formData.coverPhoto && formData.coverPhoto !== course.coverPhoto) {
       coverPhoto = (
@@ -78,11 +82,13 @@ export async function updateCourseMeta(
         caption: formData.caption,
         courseDuration: formData.courseDuration,
         repoURL: formData.repoURL,
+        totalLevels: levels.length,
       },
     });
 
     revalidatePath(`/course/${course.courseCode}`);
     revalidatePath(`/courses`);
+    updateTag(cacheTags.course(course.courseCode));
 
     return { success: true, message: "Course updated successfully" };
   } catch (error) {
@@ -130,6 +136,7 @@ export async function deleteCourse(courseId: string): Promise<ActionResponse> {
 
     revalidatePath("/courses");
     revalidatePath(`/course/${existingCourse.courseCode}`);
+    updateTag(cacheTags.course(existingCourse.courseCode));
 
     return { success: true, message: "Course deleted successfully" };
   } catch (error) {

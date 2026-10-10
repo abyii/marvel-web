@@ -9,7 +9,7 @@ import {
   HiChevronDoubleDown as DownIcon,
   HiOutlineBars2 as MenuIcon,
 } from "react-icons/hi2";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import MenuDialog from "./MenuDialog";
 import { usePathname } from "next/navigation";
 
@@ -18,9 +18,12 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const path = usePathname();
 
-  useEffect(() => {
+  // close the menu on navigation (state adjusted during render, not in an effect)
+  const [menuPath, setMenuPath] = useState(path);
+  if (path !== menuPath) {
+    setMenuPath(path);
     setMenuOpen(false);
-  }, [path]);
+  }
 
   useMemo(() => {
     typeof window !== "undefined" &&

@@ -3,7 +3,7 @@
 import { FullScreenDialog, Button } from "@marvel/ui/ui";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArticleFormData } from "../../../../types";
 import { TypeOfArticle, ScopeEnum } from "@prisma/client";
@@ -24,15 +24,20 @@ const Writer = ({ authorSlug }: { authorSlug: string }) => {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    setFormData({
-      title: "",
-      caption: "",
-      content: "",
-      courseIds: [],
-      coverPhoto: "",
-    });
-  }, [formType]);
+  // a different article type starts from an empty form
+  const openDialog = (type: TypeOfArticle) => {
+    if (type !== formType) {
+      setFormType(type);
+      setFormData({
+        title: "",
+        caption: "",
+        content: "",
+        courseIds: [],
+        coverPhoto: "",
+      });
+    }
+    setDialogOpen((p) => !p);
+  };
 
   const handleCreateArticle = () => {
     startTransition(async () => {
@@ -57,20 +62,14 @@ const Writer = ({ authorSlug }: { authorSlug: string }) => {
               <Button
                 className="flex-1"
                 variant="outlined"
-                onPress={() => {
-                  setFormType("BLOG");
-                  setDialogOpen((p) => !p);
-                }}
+                onPress={() => openDialog("BLOG")}
               >
                 New Blog Post
               </Button>
               <Button
                 className="flex-1"
                 variant="outlined"
-                onPress={() => {
-                  setFormType("RESOURCE");
-                  setDialogOpen((p) => !p);
-                }}
+                onPress={() => openDialog("RESOURCE")}
               >
                 New Resource Article
               </Button>

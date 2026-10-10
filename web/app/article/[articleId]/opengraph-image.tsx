@@ -1,5 +1,7 @@
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 import dbClient from "../../../utils/dbConnector";
+import { cacheTags } from "../../../utils/cache";
+import { unstable_cache } from "next/cache";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -10,28 +12,42 @@ export const size = {
 };
 export const contentType = "image/png";
 
+// generated on first request, then served from cache until the article changes
+export const revalidate = false;
+export async function generateStaticParams() {
+  return [];
+}
+
 const getArticle = async (id: string) => {
     try {
-      const article = await dbClient.article.findUniqueOrThrow({
-        where: {
-          id: id,
-        },
-        select: {
-          title: true,
-          caption: true,
-          typeOfArticle: true,
-          createdAt: true,
-        },
-      });
-      return article;
+      return await unstable_cache(
+        () =>
+          dbClient.article.findUniqueOrThrow({
+            where: {
+              id: id,
+            },
+            select: {
+              title: true,
+              caption: true,
+              typeOfArticle: true,
+              createdAt: true,
+            },
+          }),
+        ["og-article", id],
+        { tags: [cacheTags.article(id)] }
+      )();
     } catch (error) {
       return null;
     }
   };
 
-  
-  export default async function Image({ params }: { params: { articleId: string } }) {
-    const article = await getArticle(params.articleId);
+  export default async function Image({
+    params,
+  }: {
+    params: Promise<{ articleId: string }>;
+  }) {
+    const { articleId } = await params;
+    const article = await getArticle(articleId);
     const fontData = await readFile(
       join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
     )

@@ -1,32 +1,13 @@
-import { ReactNode, cache } from "react";
+import { ReactNode } from "react";
 import { Window, Paper } from "@marvel/ui/ui";
 import { Avatar, Button } from "@marvel/ui/ui";
-import dbClient from "../../../utils/dbConnector";
 import Manager from "./UserManager";
 import { ScopeEnum } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
+import { getUserBySlug } from "./getUserBySlug";
 
 export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
-
-const getUserBySlug = cache(async (slug: string) => {
-  const person = await dbClient.people.findUnique({
-    where: {
-      slug: slug,
-    },
-    select: {
-      slug: true,
-      name: true,
-      profilePic: true,
-      scope: {
-        select: {
-          scope: true,
-        },
-      },
-    },
-  });
-  return person;
-});
 
 export async function generateStaticParams() {
   return [];

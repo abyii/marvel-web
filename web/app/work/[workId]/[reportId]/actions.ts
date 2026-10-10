@@ -3,7 +3,7 @@
 import "server-only";
 
 import { getServerSession } from "next-auth/next";
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import sanitize from "sanitize-html";
 import { ReviewStatus } from "@prisma/client";
 
@@ -11,7 +11,13 @@ import { authOptions } from "../../../../pages/api/auth/[...nextauth]";
 import dbClient from "../../../../utils/dbConnector";
 import { supabaseStorageClient } from "../../../../utils/supabaseStorageClient";
 import { SANITIZE_OPTIONS } from "../../../../utils";
+import {
+  cacheTags,
+  revalidateGrads,
+  revalidateWork,
+} from "../../../../utils/cache";
 import { ReportFormData } from "../../../../types";
+import { MAX_PROJECT_REPORTS } from "../../../../utils/limits";
 
 type ActionResponse<T = void> = {
   success: boolean;
@@ -39,7 +45,7 @@ export async function createReport(
         id: true,
         typeOfWork: true,
         totalLevels: true,
-        Reports: { select: { reviewStatus: true } },
+        Reports: { select: { id: true, reviewStatus: true } },
       },
     });
 
@@ -62,6 +68,16 @@ export async function createReport(
       return {
         success: false,
         message: "All the reports are already written",
+      };
+    }
+
+    if (
+      work?.typeOfWork === "PROJECT" &&
+      work?.Reports?.length >= MAX_PROJECT_REPORTS
+    ) {
+      return {
+        success: false,
+        message: `A project can have at most ${MAX_PROJECT_REPORTS} reports`,
       };
     }
 
@@ -106,11 +122,18 @@ export async function createReport(
       data: { content: uploadedFileURL?.data.publicUrl },
     });
 
-    revalidatePath(`/work/${work?.id}`, 'layout');
-    if(createdReport?.isOverview){
-      revalidatePath(`/work/${work?.id}`);
-    }else{
-      revalidatePath(`/work/${work?.id}/${createdReport?.id}`);
+    revalidateWork(work.id, [
+      ...work.Reports.map((r) => r.id),
+      createdReport.id,
+    ]);
+    if (work.typeOfWork === "COURSE") {
+      if (work.Reports.length === 0) {
+        // first report: the work now shows up in the course's works list
+        updateTag(cacheTags.courseWorks(work.courseCode as string));
+      } else {
+        // all previous reports were approved, so the work was listed as a grad
+        revalidateGrads();
+      }
     }
 
     return {
@@ -145,6 +168,7 @@ export async function updateReport(
         id: true,
         workId: true,
         title: true,
+        reviewStatus: true,
         isOverview: true,
         work: {
           select: {
@@ -154,6 +178,7 @@ export async function updateReport(
               where: { status: "ACTIVE" },
               select: { personId: true, role: true, status: true },
             },
+            Reports: { select: { id: true } },
           },
         },
       },
@@ -195,11 +220,16 @@ export async function updateReport(
       data: { title: formData?.title, reviewStatus: "PENDING" },
     });
 
-    revalidatePath(`/work/${existingReport?.workId}`, 'layout');
-    if(existingReport?.isOverview){
-      revalidatePath(`/work/${existingReport?.workId}`);
-    }else{
-      revalidatePath(`/work/${existingReport?.workId}/${existingReport?.id}`);
+    revalidateWork(
+      existingReport.workId,
+      existingReport.work.Reports.map((r) => r.id)
+    );
+    if (
+      existingReport.work.typeOfWork === "COURSE" &&
+      existingReport.reviewStatus === "APPROVED"
+    ) {
+      // back to PENDING: the work may drop out of the grads list
+      revalidateGrads();
     }
 
     return { success: true, message: `level report updated successfully` };
@@ -240,6 +270,7 @@ export async function reviewReport(
               where: { AND: [{ role: "COORDINATOR" }, { status: "ACTIVE" }] },
               select: { personId: true, role: true, status: true },
             },
+            Reports: { select: { id: true, reviewStatus: true } },
           },
         },
       },
@@ -281,10 +312,20 @@ export async function reviewReport(
       });
     }
 
-    revalidatePath(`/work/${existingReport?.workId}`, 'layout');
-    if(!existingReport.isOverview){
-      revalidatePath(`/work/${existingReport?.workId}/${existingReport?.id}`);
-    } 
+    revalidateWork(
+      existingReport.workId,
+      existingReport.work.Reports.map((r) => r.id)
+    );
+    if (
+      action === "approve" &&
+      existingReport.work.typeOfWork === "COURSE" &&
+      existingReport.work.Reports.every(
+        (r) => r.id === existingReport.id || r.reviewStatus === "APPROVED"
+      )
+    ) {
+      // last pending report approved: the work joins the grads list
+      revalidateGrads();
+    }
 
     return { success: true, message: `level report updated successfully` };
   } catch (error) {

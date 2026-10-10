@@ -4,15 +4,15 @@ import "server-only";
 
 import { getServerSession } from "next-auth/next";
 import { v2 as cloudinary } from "cloudinary";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import sanitize from "sanitize-html";
-import { ScopeEnum, TypeOfArticle } from "@prisma/client";
 
 import { authOptions } from "../../../pages/api/auth/[...nextauth]";
 import dbClient from "../../../utils/dbConnector";
 import { supabaseStorageClient } from "../../../utils/supabaseStorageClient";
 import { SANITIZE_OPTIONS } from "../../../utils";
 import { ArticleFormData } from "../../../types";
+import { cacheTags } from "../../../utils/cache";
 
 type ActionResponse<T = void> = {
   success: boolean;
@@ -26,114 +26,6 @@ cloudinary.config({
   api_secret: process.env.CLDNRY_API_SECRET,
   secure: true,
 });
-
-export async function createArticle(
-  formData: ArticleFormData,
-  typeOfArticle: TypeOfArticle
-): Promise<ActionResponse<{ id: string }>> {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return { success: false, message: "Authentication required." };
-    }
-
-    const condition = ["ADMIN", "CRDN", "PROFILE"].some((s) =>
-      session?.user?.scope?.map((s) => s.scope)?.includes(s as ScopeEnum)
-    );
-
-    if (!condition) {
-      return { success: false, message: "Access denied." };
-    }
-
-    const cleanContent = sanitize(formData.content, SANITIZE_OPTIONS);
-
-    if (formData?.title?.length >= 60 || cleanContent?.length >= 15_000) {
-      return { success: false, message: "Invalid form data." };
-    }
-
-    const createdArticle = await dbClient.article.create({
-      data: {
-        typeOfArticle: typeOfArticle,
-        title: formData?.title,
-        caption: formData?.caption,
-        coverPhoto: "",
-        content: "",
-        reviewStatus:
-          session.user.scope?.some(
-            (s) => s.scope === "CRDN" || s.scope === "ADMIN"
-          )
-            ? "APPROVED"
-            : "PENDING",
-        People: {
-          create: [
-            {
-              personId: session?.user?.id as string,
-              role: "OP",
-            },
-          ],
-        },
-        ...(typeOfArticle === "RESOURCE" && {
-          Courses: {
-            create: formData?.courseIds?.map((c) => ({
-              course: { connect: { id: c } },
-            })),
-          },
-        }),
-        feedback: "",
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    let coverPhoto: string | null = null;
-    if (formData?.coverPhoto) {
-      coverPhoto = (
-        await cloudinary.uploader.upload(formData.coverPhoto as string, {
-          public_id: createdArticle?.id,
-          folder: "article_covers",
-          resource_type: "image",
-          overwrite: true,
-          secure: true,
-        })
-      ).secure_url;
-    }
-
-    const filePath = `article/${createdArticle.id}.md`;
-    await supabaseStorageClient.upload(
-      filePath,
-      new Blob([cleanContent], { type: "text/markdown" })
-    );
-    const uploadedFileUrl = await supabaseStorageClient.getPublicUrl(filePath);
-
-    await dbClient.article.update({
-      where: {
-        id: createdArticle?.id,
-      },
-      data: {
-        ...(coverPhoto && { coverPhoto: coverPhoto }),
-        ...(uploadedFileUrl.data && {
-          content: uploadedFileUrl.data.publicUrl,
-        }),
-      },
-    });
-
-    revalidatePath(`/u/${session?.user?.slug}/writings`);
-    revalidatePath(`/article/${createdArticle.id}`);
-
-    return {
-      success: true,
-      message: "Article created successfully",
-      data: { id: createdArticle.id },
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "Failed to create article",
-    };
-  }
-}
 
 export async function updateArticle(
   articleId: string,
@@ -150,10 +42,13 @@ export async function updateArticle(
       select: {
         id: true,
         title: true,
+        caption: true,
         typeOfArticle: true,
         coverPhoto: true,
         Courses: { select: { course: { select: { courseCode: true, id: true } } } },
-        People: { select: { personId: true } },
+        People: {
+          select: { personId: true, person: { select: { slug: true } } },
+        },
       },
     });
 
@@ -192,6 +87,8 @@ export async function updateArticle(
     }
 
     let coursesUpdate: any = undefined;
+    // courses whose article list gains or loses this article
+    let changedCourseCodes: string[] = [];
     if (existingArticle.typeOfArticle === "RESOURCE") {
       const oldCourses = existingArticle.Courses.map((c) => ({
         id: c.course.id,
@@ -199,13 +96,21 @@ export async function updateArticle(
       }));
       const newCourseCodes = formData.courseIds || [];
 
-      const idsToDelete = oldCourses
-        .filter((c) => !newCourseCodes.includes(c.code))
-        .map((c) => c.id);
+      const removedCourses = oldCourses.filter(
+        (c) => !newCourseCodes.includes(c.code)
+      );
+      const idsToDelete = removedCourses.map((c) => c.id);
 
       const codesToAdd = newCourseCodes.filter(
         (code) => !oldCourses.some((oc) => oc.code === code)
       );
+
+      const listedFieldsChanged =
+        formData.title !== existingArticle.title ||
+        formData.caption !== existingArticle.caption;
+      changedCourseCodes = listedFieldsChanged
+        ? [...new Set([...oldCourses.map((c) => c.code), ...newCourseCodes])]
+        : [...removedCourses.map((c) => c.code), ...codesToAdd];
 
       if (idsToDelete.length > 0 || codesToAdd.length > 0) {
         coursesUpdate = {
@@ -241,9 +146,15 @@ export async function updateArticle(
     });
 
     revalidatePath(`/article/${existingArticle.id}`);
+    updateTag(cacheTags.article(existingArticle.id));
     if (formData.title !== existingArticle.title) {
-      revalidatePath(`/u/${session.user.slug}/writings`);
+      existingArticle.People.forEach((p) =>
+        updateTag(cacheTags.profileWritings(p.person.slug))
+      );
     }
+    changedCourseCodes.forEach((code) =>
+      updateTag(cacheTags.courseArticles(code))
+    );
 
     return { success: true, message: "Article updated successfully" };
   } catch (error) {
@@ -267,6 +178,7 @@ export async function deleteArticle(articleId: string): Promise<ActionResponse> 
         id: true,
         typeOfArticle: true,
         coverPhoto: true,
+        Courses: { select: { course: { select: { courseCode: true } } } },
         People: {
           select: {
             personId: true,
@@ -308,9 +220,13 @@ export async function deleteArticle(articleId: string): Promise<ActionResponse> 
     }
 
     existingArticle.People.forEach((p) => {
-      revalidatePath(`/u/${p.person.slug}/writings`);
+      updateTag(cacheTags.profileWritings(p.person.slug));
     });
     revalidatePath(`/article/${articleId}`);
+    updateTag(cacheTags.article(articleId));
+    existingArticle.Courses.forEach((c) =>
+      updateTag(cacheTags.courseArticles(c.course.courseCode))
+    );
 
     return { success: true, message: "Article deleted successfully" };
   } catch (error) {

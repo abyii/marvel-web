@@ -1,6 +1,6 @@
 import { memo, type JSX } from "react";
 import Markdown from "react-markdown";
-import he from "he";
+import { decode } from "he";
 import sanitizer from "sanitize-html";
 import { SANITIZE_OPTIONS } from "@marvel/ui/utils";
 import rehypeRaw from "rehype-raw";
@@ -64,8 +64,9 @@ export const MarkdownRender = memo(
           ),
         }}
       >
-        {he.decode(sanitizer(content, SANITIZE_OPTIONS))}
+        {decode(sanitizer(content, SANITIZE_OPTIONS))}
       </Markdown>
     );
   }
 );
+MarkdownRender.displayName = "MarkdownRender";

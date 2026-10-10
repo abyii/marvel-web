@@ -53,7 +53,7 @@ const MenuDialog = ({ menuOpen, setMenuOpen }) => {
           query: query,
           skip: pageParam,
         }),
-      enabled: !!query || false,
+      enabled: !!query && !!sessionUser?.id,
       getNextPageParam: (lastPage, pages) =>
         lastPage?.length == 12 ? pages?.length * 12 : null,
     });
@@ -119,7 +119,16 @@ const MenuDialog = ({ menuOpen, setMenuOpen }) => {
               </TabGroup>
             </div>
             <br />
-            {query === "" ? (
+            {!sessionUser?.id ? (
+              <div className="w-full flex flex-col items-center gap-5 text-sm text-p-3 dark:text-p-6">
+                Sign in to search Marvel.
+                <Button onPress={() => signIn("google", { redirect: false })}>
+                  <span className="whitespace-nowrap flex gap-3 items-center">
+                    <GoSignIn /> Sign In
+                  </span>
+                </Button>
+              </div>
+            ) : query === "" ? (
               <>
                 <div className="w-full flex justify-center text-sm text-p-3 dark:text-p-6">
                   Type query and press Enter...

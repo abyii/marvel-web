@@ -1,35 +1,50 @@
 import { Paper, Tab, TabGroup } from "@marvel/ui/ui";
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import dbClient from "../../../../utils/dbConnector";
+import { cacheTags } from "../../../../utils/cache";
+import { getTotalPages, parsePage } from "../../../../utils/pagination";
+import { Pagination } from "../../../../components/Pagination";
 import Writer from "./Writer";
 
-export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+export const dynamic = "force-dynamic";
 
-const getUserWritingsBySlug = async (slug: string) => {
-  const writings = await dbClient.article.findMany({
-    where: {
-      People: {
-        some: {
-          person: {
-            slug: slug,
-          },
-        },
-      },
-    },
-    select: {
-      id: true,
-      title: true,
-      coverPhoto: true,
-      typeOfArticle: true,
-      reviewStatus: true,
-    },
-  });
-  return writings;
-};
+const PAGE_SIZE = 12;
 
 export default async function page(props) {
   const params = await props.params;
-  const writings = await getUserWritingsBySlug(params?.profileSlug as string);
+  const searchParams = await props.searchParams;
+  const slug = params?.profileSlug as string;
+  const currentPage = parsePage(searchParams?.page);
+  const where = { People: { some: { person: { slug: slug } } } };
+  const cacheOptions = { tags: [cacheTags.profileWritings(slug)] };
+
+  const totalPages = getTotalPages(
+    currentPage,
+    await unstable_cache(
+      () => dbClient.article.count({ where }),
+      ["profile-writings-count", slug],
+      cacheOptions
+    )(),
+    PAGE_SIZE
+  );
+  const writings = await unstable_cache(
+    () =>
+      dbClient.article.findMany({
+        where,
+        select: {
+          id: true,
+          title: true,
+          typeOfArticle: true,
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+        skip: (currentPage - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+    ["profile-writings", slug, String(currentPage)],
+    cacheOptions
+  )();
+
   return (
     <div className="flex flex-col pb-36">
       {/* toggle buttons  */}
@@ -81,6 +96,11 @@ export default async function page(props) {
         )}
         <Writer authorSlug={params?.profileSlug} />
       </Paper>
+      <Pagination
+        pathname={`/u/${slug}/writings`}
+        page={currentPage}
+        totalPages={totalPages}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 import dbClient from "../../../utils/dbConnector";
 import { notFound } from "next/navigation";
 import { readFile } from "node:fs/promises";
@@ -11,18 +11,24 @@ export const size = {
 };
 export const contentType = "image/png";
 
+// name and picture never change after sign-up, so cache forever
+export const revalidate = false;
+export async function generateStaticParams() {
+  return [];
+}
 
 export default async function Image({
   params,
 }: {
-  params: { profileSlug: string };
+  params: Promise<{ profileSlug: string }>;
 }) {
+  const { profileSlug } = await params;
   const fontData = await readFile(
     join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
   )
   const person = await dbClient.people.findUnique({
     where: {
-      slug: params.profileSlug,
+      slug: profileSlug,
     },
     select: {
       name: true,

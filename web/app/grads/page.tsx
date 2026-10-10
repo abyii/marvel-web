@@ -1,20 +1,34 @@
 import { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import dbClient from "../../utils/dbConnector";
+import { cacheTags } from "../../utils/cache";
+import { getTotalPages, parsePage } from "../../utils/pagination";
+import { Pagination } from "../../components/Pagination";
 import { Avatar, Window } from "@marvel/ui/ui";
 import Link from "next/link";
 
-const getGradsListGroupByQuarter = async () => {
+export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 24; // works per page
+
+// a grad is a COURSE work that has an overview report and only APPROVED reports
+const where = {
+  typeOfWork: "COURSE" as const,
+  Reports: {
+    some: { isOverview: true },
+    every: { reviewStatus: "APPROVED" as const },
+  },
+};
+
+const getGradsCount = unstable_cache(
+  () => dbClient.work.count({ where }),
+  ["grads-count"],
+  { tags: [cacheTags.grads] }
+);
+
+const getGradsListGroupByQuarter = async (page: number) => {
   const worksThatHaveAllApprovedReports = await dbClient.work.findMany({
-    where: {
-      AND: {
-        typeOfWork: "COURSE",
-        Reports: {
-          every: {
-            reviewStatus: "APPROVED"
-          }
-        }
-      }
-    },
+    where,
     select: {
       courseCode: true,
       People: {
@@ -29,16 +43,20 @@ const getGradsListGroupByQuarter = async () => {
         }
       },
       Reports: {
+        where: { isOverview: true },
         select: {
           createdAt: true,
-          isOverview: true,
-        }
+        },
+        take: 1,
       }
-    }
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
   });
 
   const gradsListGroupByQuarter = worksThatHaveAllApprovedReports?.reduce((acc, work) => {
-    const date = work.Reports.find(r => r.isOverview)?.createdAt;
+    const date = work.Reports[0]?.createdAt;
     if (!date) {
       return acc;
     }
@@ -58,7 +76,13 @@ const getGradsListGroupByQuarter = async () => {
   return gradsListGroupByQuarter;
 };
 
-export const revalidate = 604800; // once a week
+const getGradsPage = async (page: number) => {
+  return await unstable_cache(
+    async () => getGradsListGroupByQuarter(page),
+    ["grads", String(page)],
+    { tags: [cacheTags.grads] }
+  )();
+};
 
 export const metadata: Metadata = {
   title: "Students Graduated from Student Track - from every Quarter. | UVCE MARVEL",
@@ -82,8 +106,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function page() {
-  const gradsListGroupByQuarter = await getGradsListGroupByQuarter();
+export default async function page({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const currentPage = parsePage((await searchParams)?.page);
+  const totalPages = getTotalPages(currentPage, await getGradsCount(), PAGE_SIZE);
+  const gradsListGroupByQuarter = await getGradsPage(currentPage);
 
   const sortedQuarter = Object.keys(gradsListGroupByQuarter).sort((a, b) => b.localeCompare(a));
   return (
@@ -115,6 +141,7 @@ export default async function page() {
             </div>
           ))}
         </div>
+        <Pagination pathname="/grads" page={currentPage} totalPages={totalPages} />
       </div>
     </Window>
   );

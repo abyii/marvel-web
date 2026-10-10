@@ -1,5 +1,7 @@
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 import dbClient from "../../../utils/dbConnector";
+import { cacheTags } from "../../../utils/cache";
+import { unstable_cache } from "next/cache";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -10,21 +12,31 @@ export const size = {
 };
 export const contentType = "image/png";
 
+// generated on first request, then served from cache until the event changes
+export const revalidate = false;
+export async function generateStaticParams() {
+  return [];
+}
+
 const getEvent = async (id: string) => {
   try {
-    const event = await dbClient.event.findUnique({
-      where: {
-        id: id,
-      },
-      select: {
-        title: true,
-        caption: true,
-        typeOfEvent: true,
-        eventStartTime: true,
-        coverPhoto: true,
-      },
-    });
-    return event;
+    return await unstable_cache(
+      () =>
+        dbClient.event.findUnique({
+          where: {
+            id: id,
+          },
+          select: {
+            title: true,
+            caption: true,
+            typeOfEvent: true,
+            eventStartTime: true,
+            coverPhoto: true,
+          },
+        }),
+      ["og-event", id],
+      { tags: [cacheTags.event(id)] }
+    )();
   } catch (error) {
     return null;
   }
@@ -34,9 +46,10 @@ const getEvent = async (id: string) => {
 export default async function Image({
   params,
 }: {
-  params: { eventId: string };
+  params: Promise<{ eventId: string }>;
 }) {
-  const event = await getEvent(params.eventId);
+  const { eventId } = await params;
+  const event = await getEvent(eventId);
   
   const fontData = await readFile(
     join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")

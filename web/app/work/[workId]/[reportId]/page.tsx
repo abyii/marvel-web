@@ -4,6 +4,7 @@ import ReportWriter from "../ReportWriter";
 import ReportReviewer from "../ReportReviewer";
 import ReportEditor from "../ReportEditor";
 import { ReviewStatus } from "@prisma/client";
+import { MAX_PROJECT_REPORTS } from "../../../../utils/limits";
 import Image from "next/image";
 import axios from "axios";
 
@@ -72,7 +73,8 @@ export default async function page(props) {
             !["PENDING", "FLAGGED"].some((s: ReviewStatus) =>
               work?.Reports?.map((r) => r.reviewStatus).includes(s)
             )) ||
-            work?.typeOfWork === "PROJECT") ? (
+            (work?.typeOfWork === "PROJECT" &&
+              work?.Reports?.length < MAX_PROJECT_REPORTS)) ? (
             <>
               <h1 className="text-2xl">
                 {work?.typeOfWork === "PROJECT" ? "Stage" : "Level"}{" "}

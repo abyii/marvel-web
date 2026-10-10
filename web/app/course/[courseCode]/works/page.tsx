@@ -2,77 +2,84 @@ import { Tab, TabGroup } from "@marvel/ui/ui";
 import Link from "next/link";
 import dbClient from "../../../../utils/dbConnector";
 import { WorkCard } from "../../../../components/Cards";
+import { Pagination } from "../../../../components/Pagination";
 import { unstable_cache } from "next/cache";
+import { cacheTags } from "../../../../utils/cache";
+import { getTotalPages, parsePage } from "../../../../utils/pagination";
 
 export const dynamic = "force-dynamic";
 
-const getWorksRaw = async (courseCode: string, page = 1) => {
-  console.log("get works raw query: ", courseCode);
+const PAGE_SIZE = 12;
 
-  const limit = 12;
-  const skip = (page - 1) * limit;
-
-  const where = {
-    AND: [
-      { courseCode: courseCode },
-      {
-        NOT: {
-          Reports: {
-            none: {},
-          },
+// only works that have at least one report are listed
+const getWhere = (courseCode: string) => ({
+  AND: [
+    { courseCode: courseCode },
+    {
+      NOT: {
+        Reports: {
+          none: {},
         },
       },
-    ],
-  };
+    },
+  ],
+});
 
-  const [works, total] = await Promise.all([
-    dbClient.work.findMany({
-      where,
-      select: {
-        id: true,
-        typeOfWork: true,
-        courseCode: true,
-        People: {
-          select: {
-            person: {
-              select: {
-                name: true,
-              },
+const getWorksRaw = async (courseCode: string, page: number) => {
+  console.log("get works raw query: ", courseCode);
+
+  const works = await dbClient.work.findMany({
+    where: getWhere(courseCode),
+    select: {
+      id: true,
+      typeOfWork: true,
+      courseCode: true,
+      People: {
+        select: {
+          person: {
+            select: {
+              name: true,
             },
           },
         },
       },
-      take: limit,
-      skip,
-      orderBy: {
-        createdAt: 'desc'
-      }
-    }),
-    dbClient.work.count({ where })
-  ]);
+    },
+    take: PAGE_SIZE,
+    skip: (page - 1) * PAGE_SIZE,
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+  });
 
-  return {
-    works: JSON.parse(JSON.stringify(works)),
-    total,
-    totalPages: Math.ceil(total / limit)
-  };
+  return JSON.parse(JSON.stringify(works));
 };
 
 const getWorks = async (courseCode: string, page: number) => {
   return await unstable_cache(
     async () => getWorksRaw(courseCode, page),
     [`course-works-${courseCode}-${page}`],
-    { revalidate: 604800, tags: [`course-works-${courseCode}`] }
+    { tags: [cacheTags.courseWorks(courseCode)] }
+  )();
+};
+
+const getWorksCount = async (courseCode: string) => {
+  return await unstable_cache(
+    async () => dbClient.work.count({ where: getWhere(courseCode) }),
+    [`course-works-count-${courseCode}`],
+    { tags: [cacheTags.courseWorks(courseCode)] }
   )();
 };
 
 export default async function page(props: { params: Promise<{ courseCode: string }>, searchParams: Promise<{ page?: string }> }) {
   const params = await props.params;
   const searchParams = await props.searchParams;
-  const currentPage = Number(searchParams?.page) || 1;
+  const currentPage = parsePage(searchParams?.page);
   const courseCode = params?.courseCode;
 
-  const { works, totalPages } = await getWorks(courseCode, currentPage);
+  const totalPages = getTotalPages(
+    currentPage,
+    await getWorksCount(courseCode),
+    PAGE_SIZE
+  );
+  const works = await getWorks(courseCode, currentPage);
 
   return (
     <div className="flex flex-col w-full gap-5 items-center">
@@ -99,27 +106,11 @@ export default async function page(props: { params: Promise<{ courseCode: string
         )}
       </div>
 
-      <div className="w-full flex justify-center mt-10 gap-4 text-sm font-medium">
-        {currentPage > 1 && (
-          <Link
-            href={`/course/${courseCode}/works?page=${currentPage - 1}`}
-            className="px-4 py-2 border rounded-full hover:bg-gray-100 dark:hover:bg-p-2 dark:border-p-6 transition-colors"
-          >
-            Previous
-          </Link>
-        )}
-        <span className="px-4 py-2 text-p-5">
-          Page {currentPage} of {totalPages || 1}
-        </span>
-        {currentPage < totalPages && (
-          <Link
-            href={`/course/${courseCode}/works?page=${currentPage + 1}`}
-            className="px-4 py-2 border rounded-full hover:bg-gray-100 dark:hover:bg-p-2 dark:border-p-6 transition-colors"
-          >
-            Next
-          </Link>
-        )}
-      </div>
+      <Pagination
+        pathname={`/course/${courseCode}/works`}
+        page={currentPage}
+        totalPages={totalPages}
+      />
     </div>
   );
 }

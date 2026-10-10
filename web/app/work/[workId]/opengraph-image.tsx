@@ -1,5 +1,7 @@
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 import dbClient from "../../../utils/dbConnector";
+import { cacheTags } from "../../../utils/cache";
+import { unstable_cache } from "next/cache";
 import { notFound } from "next/navigation";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -11,14 +13,25 @@ export const size = {
 };
 export const contentType = "image/png";
 
+// generated on first request, then served from cache until the work changes
+export const revalidate = false;
+export async function generateStaticParams() {
+  return [];
+}
 
-export default async function Image({ params }: { params: { workId: string } }) {
+export default async function Image({
+  params,
+}: {
+  params: Promise<{ workId: string }>;
+}) {
+  const { workId } = await params;
   const fontData = await readFile(
     join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
   )
-  const work = await dbClient.work.findUnique({
+  const work = await unstable_cache(
+    () => dbClient.work.findUnique({
     where: {
-      id: params.workId,
+      id: workId,
     },
     select: {
       name: true,
@@ -39,7 +52,10 @@ export default async function Image({ params }: { params: { workId: string } }) 
         }
       }
     },
-  });
+  }),
+    ["og-work", workId],
+    { tags: [cacheTags.work(workId)] }
+  )();
 
   const title = `${
     work?.typeOfWork === "COURSE"

@@ -4,7 +4,8 @@ import { LoadingPulser, Button } from "@marvel/ui/ui/";
 import { ScopeEnum } from "@prisma/client";
 import { ArticleCard, PersonCard, ReportCard } from "../../components/Cards";
 import axios from "axios";
-import { useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
+import { GoSignIn } from "react-icons/go";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -21,17 +22,15 @@ type Tab = keyof typeof tabs;
 const Dashboard = () => {
   const router = useRouter();
   const [selectedTab, setSelectedTab] = useState<Tab>("report");
-  const sessionUser = useSession()?.data?.user;
+  const { data: session, status } = useSession();
+  const isCoordinator = ["ADMIN", "CRDN"].some((s: ScopeEnum) =>
+    session?.user?.scope?.map((s) => s?.scope).includes(s)
+  );
   useEffect(() => {
-    if (
-      sessionUser &&
-      !["ADMIN", "CRDN"].some((s: ScopeEnum) =>
-        sessionUser?.scope?.map((s) => s?.scope).includes(s)
-      )
-    ) {
+    if (status === "authenticated" && !isCoordinator) {
       router.replace("/");
     }
-  }, [sessionUser, router]);
+  }, [status, isCoordinator, router]);
 
   const {
     data,
@@ -48,9 +47,31 @@ const Dashboard = () => {
         category: selectedTab,
         skip: pageParam,
       }),
+    enabled: isCoordinator,
     getNextPageParam: (lastPage, pages) =>
       lastPage?.length == 12 ? pages?.length * 12 : null,
   });
+
+  if (status === "unauthenticated") {
+    return (
+      <div className="w-full flex flex-col items-start gap-5">
+        <p>Sign in with a coordinator account to review reports and articles.</p>
+        <Button onPress={() => signIn("google", { redirect: false })}>
+          <span className="whitespace-nowrap flex gap-3 items-center">
+            <GoSignIn /> Sign In
+          </span>
+        </Button>
+      </div>
+    );
+  }
+  if (!isCoordinator) {
+    // session loading, or redirecting a non-coordinator away
+    return (
+      <div className="py-5 w-full flex justify-center">
+        <LoadingPulser />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">

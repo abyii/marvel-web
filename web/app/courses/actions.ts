@@ -4,12 +4,13 @@ import "server-only";
 
 import { getServerSession } from "next-auth/next";
 import { v2 as cloudinary } from "cloudinary";
-import { revalidatePath } from "next/cache";
-import axios from "axios";
+import { revalidatePath, updateTag } from "next/cache";
 
 import { authOptions } from "../../pages/api/auth/[...nextauth]";
 import dbClient from "../../utils/dbConnector";
 import { CourseFormData } from "../../types";
+import { cacheTags } from "../../utils/cache";
+import { getCourseLevelFiles } from "../../utils/github";
 
 type ActionResponse<T = void> = {
   success: boolean;
@@ -42,24 +43,7 @@ export async function createCourse(
       return { success: false, message: "Invalid form data." };
     }
 
-    const repoName = formData?.repoURL?.slice(
-      formData?.repoURL.search("github.com") + 11 //number of chars in github.com + 1
-    );
-    const owner = repoName?.split("/")?.[0];
-    const repo = repoName?.split("/")?.[1];
-    const filesMetaData: any = (
-      await axios.get(
-        `https://api.github.com/repos/${owner}/${repo}/contents/`,
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.GITHUB_PAT}`,
-          },
-        }
-      )
-    ).data;
-    const levels = filesMetaData?.filter((e: any) =>
-      /^LEVEL\d+\.md$/.test(e?.["path"])
-    );
+    const levels = await getCourseLevelFiles(formData.repoURL as string);
 
     const createdCourse = await dbClient.course.create({
       data: {
@@ -95,6 +79,9 @@ export async function createCourse(
     }
 
     revalidatePath("/courses");
+    // the course code may have been cached as not-found
+    revalidatePath(`/course/${formData.courseCode}`);
+    updateTag(cacheTags.course(formData.courseCode as string));
 
     return { success: true, message: "Course created successfully" };
   } catch (error) {

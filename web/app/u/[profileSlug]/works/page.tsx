@@ -1,45 +1,63 @@
 import { Paper, Tab, TabGroup } from "@marvel/ui/ui";
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import dbClient from "../../../../utils/dbConnector";
+import { cacheTags } from "../../../../utils/cache";
+import { getTotalPages, parsePage } from "../../../../utils/pagination";
+import { Pagination } from "../../../../components/Pagination";
 import Spawner from "./Spawner";
 
-export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+export const dynamic = "force-dynamic";
 
-const getUserWorksBySlug = async (slug: string) => {
-  const works = await dbClient.work.findMany({
-    where: {
-      People: {
-        some: {
-          person: {
-            slug: slug,
-          },
-        },
-      },
-    },
-    select: {
-      id: true,
-      name: true,
-      courseCode: true,
-      typeOfWork: true,
-    },
-  });
-  return works;
-};
+const PAGE_SIZE = 12;
 
 export default async function page(props) {
   const params = await props.params;
-  const works = await getUserWorksBySlug(params?.profileSlug as string);
+  const searchParams = await props.searchParams;
+  const slug = params?.profileSlug as string;
+  const currentPage = parsePage(searchParams?.page);
+  // every role the person has on a work counts
+  const where = { People: { some: { person: { slug: slug } } } };
+  const cacheOptions = { tags: [cacheTags.profileWorks(slug)] };
+
+  const totalPages = getTotalPages(
+    currentPage,
+    await unstable_cache(
+      () => dbClient.work.count({ where }),
+      ["profile-works-count", slug],
+      cacheOptions
+    )(),
+    PAGE_SIZE
+  );
+  const works = await unstable_cache(
+    () =>
+      dbClient.work.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          courseCode: true,
+          typeOfWork: true,
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+        skip: (currentPage - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+    ["profile-works", slug, String(currentPage)],
+    cacheOptions
+  )();
+
   return (
     <div className="flex flex-col pb-36">
       {/* toggle buttons  */}
       <TabGroup className="self-center md:self-start">
-        <Link href={`/u/${params?.profileSlug}/`}>
+        <Link href={`/u/${slug}/`}>
           <Tab>ReadMe</Tab>
         </Link>
-        <Link href={`/u/${params?.profileSlug}/works`}>
+        <Link href={`/u/${slug}/works`}>
           <Tab active>Works</Tab>
         </Link>
-        <Link href={`/u/${params?.profileSlug}/writings`}>
+        <Link href={`/u/${slug}/writings`}>
           <Tab>Writings</Tab>
         </Link>
       </TabGroup>
@@ -76,8 +94,14 @@ export default async function page(props) {
             ))}
           </>
         )}
-        <Spawner authorSlug={params?.profileSlug} />
+        {/* keyed so form state doesn't carry over between profiles */}
+        <Spawner key={slug} authorSlug={slug} />
       </Paper>
+      <Pagination
+        pathname={`/u/${slug}/works`}
+        page={currentPage}
+        totalPages={totalPages}
+      />
     </div>
   );
 }

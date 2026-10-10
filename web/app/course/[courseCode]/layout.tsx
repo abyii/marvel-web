@@ -1,36 +1,12 @@
 import { Window, Paper } from "@marvel/ui/ui";
-import dbClient from "../../../utils/dbConnector";
 import Image from "next/image";
 import EditMeta from "./EditMeta/EditMeta";
 import { getCroppedCloudinaryImage } from "@marvel/ui/utils";
 import { Metadata } from "next";
-import { cache } from "react";
 import { notFound } from "next/navigation";
+import { getCourse } from "./getCourse";
 
 export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
-
-const getCourse = cache(async (id: string) => {
-  try {
-    const course = await dbClient.course.findUnique({
-      where: {
-        courseCode: id,
-      },
-      select: {
-        id: true,
-        caption: true,
-        courseCode: true,
-        courseDuration: true,
-        coverPhoto: true,
-        repoURL: true,
-        totalLevels: true,
-        updatedAt: true,
-      },
-    });
-    return course;
-  } catch (error) {
-    return null;
-  }
-});
 
 export async function generateMetadata(props): Promise<Metadata> {
   const params = await props.params;

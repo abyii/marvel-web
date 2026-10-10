@@ -1,66 +1,35 @@
 import { MarkdownRender, Tab, TabGroup } from "@marvel/ui/ui";
-import dbClient from "../../../utils/dbConnector";
 import axios from "axios";
 import ContentsIndex from "./ContentsIndex";
 import Link from "next/link";
-import { cache } from "react";
+import { getCourse } from "./getCourse";
+import { getCourseLevelFiles } from "../../../utils/github";
 
 export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
 
-const getSyllabus = cache(async (courseCode: string) => {
-  const course = await dbClient.course.findUnique({
-    where: {
-      courseCode: courseCode,
-    },
-    select: {
-      repoURL: true,
-      totalLevels: true,
-      updatedAt: true,
-    },
-  });
-  const repoName = course?.repoURL?.slice(
-    course?.repoURL.search("github.com") + 11 //number of chars in github.com + 1
-  );
-  const owner = repoName?.split("/")?.[0];
-  const repo = repoName?.split("/")?.[1];
-  const filesMetaData: any = (
-    await axios.get(`https://api.github.com/repos/${owner}/${repo}/contents/`, {
-      headers: {
-        Authorization: `Bearer ${process.env.GITHUB_PAT}`,
-      },
-    })
-  ).data;
-
-  const levels = filesMetaData?.filter((e) =>
-    /^LEVEL\d+\.md$/.test(e?.["path"])
-  );
-  if (course?.totalLevels !== levels?.length) {
-    await dbClient.course.update({
-      where: {
-        courseCode: courseCode,
-      },
-      data: {
-        totalLevels: levels?.length,
-      },
-    });
-  }
-  const content = (
-    await Promise.all(
-      levels?.map((l) =>
-        axios.get(l?.download_url, {
-          headers: {
-            Authorization: `Bearer ${process.env.GITHUB_PAT}`,
-          },
-        })
-      )
+// totalLevels is synced from the repo by createCourse/updateCourseMeta, not here:
+// a render can't invalidate the cached course data shown by the layout.
+const getSyllabus = async (courseCode: string) => {
+  const course = await getCourse(courseCode);
+  const levels = await getCourseLevelFiles(course?.repoURL ?? "");
+  return Promise.all(
+    levels.map(async (l) =>
+      Buffer.from(
+        (
+          await axios.get(l.download_url, {
+            headers: {
+              Authorization: `Bearer ${process.env.GITHUB_PAT}`,
+            },
+          })
+        ).data
+      ).toString()
     )
-  ).map((response) => Buffer.from(response?.data).toString());
-  return { content, course };
-});
+  );
+};
 
 export default async function page(props) {
   const params = await props.params;
-  const { content, course } = await getSyllabus(params?.courseCode);
+  const content = await getSyllabus(params?.courseCode);
   return (
     <div className="flex flex-col w-full gap-5 items-center">
       <TabGroup className="self-center mt-5">
@@ -75,7 +44,7 @@ export default async function page(props) {
         </Link>
       </TabGroup>
       <div className="w-full max-w-2xl">
-        <ContentsIndex course={course} />
+        <ContentsIndex totalLevels={content.length} />
         {content?.map((c, i) => (
           <div id={`${i + 1}`} key={i} className="w-full">
             <hr className="border-p-4 my-5" />

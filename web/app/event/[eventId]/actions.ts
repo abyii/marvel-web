@@ -4,7 +4,7 @@ import "server-only";
 
 import { getServerSession } from "next-auth/next";
 import { v2 as cloudinary } from "cloudinary";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import sanitize from "sanitize-html";
 import { ScopeEnum } from "@prisma/client";
 
@@ -13,6 +13,7 @@ import dbClient from "../../../utils/dbConnector";
 import { supabaseStorageClient } from "../../../utils/supabaseStorageClient";
 import { SANITIZE_OPTIONS } from "../../../utils";
 import { EventFormData } from "../../../types";
+import { cacheTags } from "../../../utils/cache";
 
 type ActionResponse<T = void> = {
   success: boolean;
@@ -118,7 +119,8 @@ export async function updateEvent(
     );
 
     revalidatePath(`/event/${existingEvent.id}`);
-    revalidatePath(`/events`);
+    updateTag(cacheTags.events);
+    updateTag(cacheTags.event(existingEvent.id));
 
     return { success: true, message: "Event updated successfully" };
   } catch (error) {
@@ -173,7 +175,8 @@ export async function deleteEvent(eventId: string): Promise<ActionResponse> {
     await supabaseStorageClient.remove([`event/${existingEvent.id}.md`]);
 
     revalidatePath(`/event/${existingEvent.id}`);
-    revalidatePath(`/events`);
+    updateTag(cacheTags.events);
+    updateTag(cacheTags.event(existingEvent.id));
 
     return { success: true, message: "Event deleted successfully" };
   } catch (error) {

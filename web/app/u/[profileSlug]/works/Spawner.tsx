@@ -29,9 +29,14 @@ const Spawner = ({ authorSlug }: { authorSlug: string }) => {
   const [isCourseListLoading, startCourseListTransition] = useTransition();
   const [courseList, setCourseList] = useState<Course[]>([]);
 
-  useEffect(() => {
-    setFormData({ authorSlug });
-  }, [formType, authorSlug]);
+  // a different work type starts from an empty form
+  const openDialog = (type: TypeOfWork) => {
+    if (type !== formType) {
+      setFormType(type);
+      setFormData({ authorSlug });
+    }
+    setDialogOpen((p) => !p);
+  };
 
   useEffect(() => {
     if (formType === "COURSE") {
@@ -66,10 +71,7 @@ const Spawner = ({ authorSlug }: { authorSlug: string }) => {
           <Button
             className="flex-1"
             variant="outlined"
-            onPress={() => {
-              setFormType("COURSE");
-              setDialogOpen((p) => !p);
-            }}
+            onPress={() => openDialog("COURSE")}
           >
             New Course Work
           </Button>
@@ -77,10 +79,7 @@ const Spawner = ({ authorSlug }: { authorSlug: string }) => {
             <Button
               className="flex-1"
               variant="outlined"
-              onPress={() => {
-                setFormType("PROJECT");
-                setDialogOpen((p) => !p);
-              }}
+              onPress={() => openDialog("PROJECT")}
             >
               New Project Work
             </Button>

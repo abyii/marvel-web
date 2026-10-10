@@ -4,12 +4,13 @@ import "server-only";
 
 import { getServerSession } from "next-auth/next";
 import sanitize from "sanitize-html";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 import { authOptions } from "../../../pages/api/auth/[...nextauth]";
 import dbClient from "../../../utils/dbConnector";
 import { supabaseStorageClient } from "../../../utils/supabaseStorageClient";
 import { SANITIZE_OPTIONS } from "../../../utils";
+import { cacheTags, revalidateProfile } from "../../../utils/cache";
 import { ScopeEnum, TypeOfArticle } from "@prisma/client";
 import { Role, TypeOfWork } from "@prisma/client";
 import { ArticleFormData } from "../../../types";
@@ -55,7 +56,7 @@ export async function updateReadMe(
       },
     });
 
-    revalidatePath(`/u/${slug}`);
+    revalidateProfile(slug);
     return { success: true, message: "profile readMe updated successfully" };
   } catch (error) {
     return {
@@ -98,7 +99,6 @@ export async function manageScope(
       },
       select: {
         id: true,
-        slug: true,
       },
     });
 
@@ -143,7 +143,8 @@ export async function manageScope(
       return { success: false, message: "invalid action" };
     }
 
-    revalidatePath(`/u/${person?.slug}`);
+    // scope drives the coordinator badge in the layout shared by all profile tabs
+    revalidateProfile(slug);
     return { success: true, message: "profile meta-data updated successfully" };
   } catch (error) {
     return {
@@ -299,7 +300,12 @@ export async function spawnWork(
       },
     });
 
-    revalidatePath(`/u/${formData?.authorSlug}/works`);
+    updateTag(cacheTags.profileWorks(formData?.authorSlug as string));
+    if (type === "PROJECT") {
+      // the spawning coordinator is a member too
+      updateTag(cacheTags.profileWorks(sessionUser?.slug as string));
+      updateTag(cacheTags.projects);
+    }
     return { success: true, message: "work created successfully" };
   } catch (error) {
     return {
@@ -411,7 +417,12 @@ export async function createArticle(
       },
     });
 
-    revalidatePath(`/u/${session?.user?.slug}/writings`);
+    updateTag(cacheTags.profileWritings(session?.user?.slug as string));
+    if (typeOfArticle === "RESOURCE") {
+      formData?.courseIds?.forEach((code) =>
+        updateTag(cacheTags.courseArticles(code))
+      );
+    }
     return {
       success: true,
       message: `${typeOfArticle} post created successfully`,

@@ -4,12 +4,13 @@ import "server-only";
 
 import { getServerSession } from "next-auth/next";
 import { v2 as cloudinary } from "cloudinary";
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import sanitize from "sanitize-html";
 
 import { authOptions } from "../../pages/api/auth/[...nextauth]";
 import dbClient from "../../utils/dbConnector";
 import { EventFormData } from "../../types";
+import { cacheTags } from "../../utils/cache";
 import { SANITIZE_OPTIONS } from "@marvel/ui/utils";
 import { supabaseStorageClient } from "@marvel/ui/utils/supabaseStorageClient";
 import { ScopeEnum } from "@prisma/client";
@@ -120,7 +121,7 @@ export async function createEvent(
       },
     });
 
-    revalidatePath("/events");
+    updateTag(cacheTags.events);
 
     return { success: true, message: "Event created successfully" };
   } catch (error) {

@@ -1,33 +1,50 @@
 import { Window } from "@marvel/ui/ui";
+import { unstable_cache } from "next/cache";
 import EventCreatingForm from "./EventCreator";
 import { EventCard } from "../../components/Cards";
+import { Pagination } from "../../components/Pagination";
 import dbClient from "../../utils/dbConnector";
+import { cacheTags } from "../../utils/cache";
+import { getTotalPages, parsePage } from "../../utils/pagination";
 
-export const revalidate = false; // cache the page forever, will only be revalidated by revalidatePath()
+export const dynamic = "force-dynamic";
 
-const getEvents = async () => {
-  const events = await dbClient.event.findMany({
-    orderBy: {
-      eventStartTime: "desc",
-    },
-    select: {
-      id: true,
-      title: true,
-      typeOfEvent: true,
-      caption: true,
-      coverPhoto: true,
-      eventStartTime: true,
-      eventEndTime: true,
-      registrationStartTime: true,
-      registrationEndTime: true,
-    },
-    take: 18
-  });
-  return events;
+const PAGE_SIZE = 18;
+
+const getEventsCount = unstable_cache(
+  () => dbClient.event.count(),
+  ["events-count"],
+  { tags: [cacheTags.events] }
+);
+
+const getEvents = async (page: number) => {
+  return await unstable_cache(
+    () =>
+      dbClient.event.findMany({
+        orderBy: [{ eventStartTime: "desc" }, { id: "asc" }],
+        select: {
+          id: true,
+          title: true,
+          typeOfEvent: true,
+          caption: true,
+          coverPhoto: true,
+          eventStartTime: true,
+          eventEndTime: true,
+          registrationStartTime: true,
+          registrationEndTime: true,
+        },
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+    ["events", String(page)],
+    { tags: [cacheTags.events] }
+  )();
 };
 
-const Page = async () => {
-  const events = await getEvents();
+const Page = async ({ searchParams }: { searchParams: Promise<{ page?: string }> }) => {
+  const currentPage = parsePage((await searchParams)?.page);
+  const totalPages = getTotalPages(currentPage, await getEventsCount(), PAGE_SIZE);
+  const events = await getEvents(currentPage);
 
   return (
     <Window className={"pt-5 md:pt-12 pb-40"}>
@@ -48,6 +65,7 @@ const Page = async () => {
             <EventCard data={d as any} key={i} />
           ))}
         </div>
+        <Pagination pathname="/events" page={currentPage} totalPages={totalPages} />
       </div>
     </Window>
   );

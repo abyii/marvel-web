@@ -1,5 +1,7 @@
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 import dbClient from "../../../utils/dbConnector";
+import { cacheTags } from "../../../utils/cache";
+import { unstable_cache } from "next/cache";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -10,20 +12,30 @@ export const size = {
 };
 export const contentType = "image/png";
 
-const getCourse = async (id: string) => {
+// generated on first request, then served from cache until the course changes
+export const revalidate = false;
+export async function generateStaticParams() {
+  return [];
+}
+
+const getCourse = async (courseCode: string) => {
   try {
-    const course = await dbClient.course.findUnique({
-      where: {
-        courseCode: id,
-      },
-      select: {
-        caption: true,
-        courseCode: true,
-        courseDuration: true,
-        totalLevels: true,
-      },
-    });
-    return course;
+    return await unstable_cache(
+      () =>
+        dbClient.course.findUnique({
+          where: {
+            courseCode: courseCode,
+          },
+          select: {
+            caption: true,
+            courseCode: true,
+            courseDuration: true,
+            totalLevels: true,
+          },
+        }),
+      ["og-course", courseCode],
+      { tags: [cacheTags.course(courseCode)] }
+    )();
   } catch (error) {
     return null;
   }
@@ -33,9 +45,10 @@ const getCourse = async (id: string) => {
 export default async function Image({
   params,
 }: {
-  params: { courseCode: string };
+  params: Promise<{ courseCode: string }>;
 }) {
-  const course = await getCourse(params.courseCode);
+  const { courseCode } = await params;
+  const course = await getCourse(courseCode);
   const fontData = await readFile(
     join(process.cwd(), "assets/IBMPlexSans-Medium.ttf")
   )

@@ -1,9 +1,9 @@
 import dbClient from "../../utils/dbConnector";
+import { cacheTags } from "../../utils/cache";
 import { Window } from "@marvel/ui/ui";
 import { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import ProjectCard from "./components/ProjectCard";
-
-export const revalidate = 86400; // once a day
 
 export const metadata: Metadata = {
     title: "Projects from Project Track | UVCE MARVEL",
@@ -24,25 +24,19 @@ export const metadata: Metadata = {
     },
 };
 
-const getFeaturedProjects = async () => {
-    try {
-        const works = await dbClient.work.findMany({
-            where: {
-                AND: {
-                    typeOfWork: "PROJECT",
-                }
-            },
+// /projects is dynamic (search params), so cache across requests; expired by
+// updateTag(cacheTags.projects) from the work actions.
+const getFeaturedProjects = unstable_cache(
+    () =>
+        dbClient.work.findMany({
+            where: { typeOfWork: "PROJECT" },
             select: {
                 name: true,
-                createdAt: true,
-                updatedAt: true,
                 note: true,
                 id: true,
-                totalLevels: true,
                 People: {
                     select: {
                         role: true,
-                        status: true,
                         person: {
                             select: {
                                 name: true,
@@ -57,29 +51,10 @@ const getFeaturedProjects = async () => {
                 rankingScore: "desc",
             },
             take: 12,
-        });
-        return works;
-    } catch (e) {
-        console.error("Failed to fetch featured projects (rankingScore might be missing), falling back to createdAt", e);
-        // Fallback if rankingScore doesn't exist
-        return await dbClient.work.findMany({
-            where: { AND: { typeOfWork: "PROJECT" } },
-            select: {
-                name: true,
-                note: true,
-                id: true,
-                People: {
-                    select: {
-                        role: true,
-                        person: { select: { name: true, slug: true, profilePic: true } }
-                    }
-                }
-            },
-            orderBy: { createdAt: "desc" },
-            take: 12
-        });
-    }
-};
+        }),
+    ["projects-featured"],
+    { tags: [cacheTags.projects] }
+);
 
 export default async function ProjectsLayout({ children }: { children: React.ReactNode }) {
     const featuredProjects = await getFeaturedProjects();

@@ -2,12 +2,12 @@
 import { Button, Paper } from "@marvel/ui/ui";
 import { TextField } from "@marvel/ui/ui";
 import { Avatar } from "../../../../components/Avatar";
-import axios, { AxiosError } from "axios";
 import { memo, useState, useTransition } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Role, Status } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { managePeopleOnWork } from "../actions";
+import { managePeopleOnWork, searchPeopleToAdd } from "../actions";
+import { MAX_PROJECT_MEMBERS } from "../../../../utils/limits";
 
 const ManagePeople = ({ work }) => {
   const router = useRouter();
@@ -17,18 +17,27 @@ const ManagePeople = ({ work }) => {
 
   const {
     data: peopleFromSearch,
-    isLoading: isPeopleLoading,
+    isFetching: isPeopleLoading,
     refetch: fetchPeople,
   } = useQuery({
-    queryKey: ["people", search],
-    queryFn: async () =>
-      (await axios.get("/api/people/search?q=" + search + "&limit=5")).data
-        ?.data,
+    queryKey: ["people", work?.id, search],
+    queryFn: async () => {
+      const response = await searchPeopleToAdd(work.id, search);
+      if (!response.success) {
+        setError(response.message);
+        return [];
+      }
+      return response.data;
+    },
     enabled: false,
   });
+  // drop people added since the search ran
   const peopleList = peopleFromSearch?.filter(
-    (p) => !work?.People?.map((p) => p?.personId)?.includes(p?.id)
+    (p) => !work?.People?.some((m) => m?.personId === p?.id)
   );
+  const isAtMemberLimit =
+    work?.typeOfWork === "PROJECT" &&
+    work?.People?.length >= MAX_PROJECT_MEMBERS;
 
   const handleManagePeople = async (args: {
     action: "add-person" | "remove-person" | "change-status";
@@ -125,6 +134,13 @@ const ManagePeople = ({ work }) => {
         </table>
       </div>
 
+      {isAtMemberLimit ? (
+        <p className="text-p-5 text-base w-full">
+          This project has the maximum of {MAX_PROJECT_MEMBERS} members. Remove
+          someone to add another.
+        </p>
+      ) : (
+        <>
       <div className="flex w-full gap-5">
         <TextField
           fullWidth
@@ -155,10 +171,9 @@ const ManagePeople = ({ work }) => {
                     {p?.name}
                   </td>
                   <td className="px-5 py-3 text-xs">
+                    {/* scope only lists CRDN/ADMIN (see searchPeopleToAdd) */}
                     {work?.typeOfWork === "PROJECT" &&
-                      ["CRDN", "ADMIN"].some((s) =>
-                        p?.scope?.map((s) => s?.scope)?.includes(s)
-                      ) && (
+                      p?.scope?.length > 0 && (
                         <Button
                           onPress={() =>
                             handleManagePeople({
@@ -193,6 +208,8 @@ const ManagePeople = ({ work }) => {
           )}
         </table>
       </div>
+        </>
+      )}
     </Paper>
   );
 };
