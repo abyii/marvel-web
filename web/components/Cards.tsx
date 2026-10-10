@@ -145,7 +145,7 @@ export const EventCard = ({ data: d }: { data: Event }) => {
         </div>
         <EventTimingText
           data={d}
-          className="absolute font-medium dark:font-normal border-t-[1.5px] dark:border-t dark:border-p-6 w-full bg-p-10 dark:bg-p-1 bottom-0 flex justify-center px-5 py-3"
+          className="absolute font-medium dark:font-normal border-t-[1.5px] dark:border-t dark:border-p-6 w-full bottom-0 flex justify-center px-5 py-3"
         />
       </Paper>
     </Link>

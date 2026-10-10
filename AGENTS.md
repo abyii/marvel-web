@@ -27,6 +27,7 @@ Markdown bodies live in Supabase Storage (DB stores the URL); images on Cloudina
   - `revalidatePath("/concrete/url")` for ISR pages.
   - `updateTag(cacheTags.x)` for tagged data. Only works inside server actions.
   - Use the helpers in `utils/cache.ts`: `revalidateWork`, `revalidateProfile`, `revalidateGrads`.
+- Cached HTML must not depend on the current time. Time-relative UI renders in the browser only (see `components/EventTimingText.tsx`).
 - Layout output is baked into each child URL's cache entry. Data shown in a layout needs every child URL revalidated (see `revalidateWork`), or must come from a tagged `unstable_cache`.
 - `revalidatePath("/x/123", "layout")` is a no-op: layout tags use the route pattern (`/x/[id]/layout`).
 - Don't cache "not found" or errors inside `unstable_cache` when the row may appear later. Throw inside the cached fn and catch outside (see `getUserBySlug.ts`).
