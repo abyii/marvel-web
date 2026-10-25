@@ -20,14 +20,21 @@ const where = {
   },
 };
 
-const getGradsCount = unstable_cache(
-  () => dbClient.work.count({ where }),
-  ["grads-count"],
-  { tags: [cacheTags.grads] }
-);
+const getGradsCount = async () => {
+  try {
+    return await unstable_cache(
+      () => dbClient.work.count({ where }),
+      ["grads-count"],
+      { tags: [cacheTags.grads] }
+    )();
+  } catch (error) {
+    return 0;
+  }
+};
 
 const getGradsListGroupByQuarter = async (page: number) => {
-  const worksThatHaveAllApprovedReports = await dbClient.work.findMany({
+  try {
+    const worksThatHaveAllApprovedReports = await dbClient.work.findMany({
     where,
     select: {
       courseCode: true,
@@ -73,7 +80,10 @@ const getGradsListGroupByQuarter = async (page: number) => {
     return acc;
   }, {} as Record<string, Array<{ name: string, slug: string, profilePic: string, courseCode: string }>>);
 
-  return gradsListGroupByQuarter;
+    return gradsListGroupByQuarter;
+  } catch (error) {
+    return {};
+  }
 };
 
 const getGradsPage = async (page: number) => {

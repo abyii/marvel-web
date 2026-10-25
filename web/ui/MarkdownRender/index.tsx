@@ -28,10 +28,74 @@ export const MarkdownRender = memo(
             </blockquote>
           ),
           ol: ({ children }) => (
-            <ol className="space-y-1 list-decimal list-inside">{children}</ol>
+            <ol className="space-y-1.5 list-decimal list-outside pl-6 my-3">
+              {children}
+            </ol>
           ),
-          ul: ({ children }) => (
-            <ul className="space-y-1 list-disc list-inside">{children}</ul>
+          ul: ({ children, className, ...props }: any) => {
+            const isTaskList = className?.includes("contains-task-list");
+            return (
+              <ul
+                className={clsx(
+                  "space-y-1.5 my-3",
+                  isTaskList
+                    ? "list-none pl-1 space-y-2"
+                    : "list-disc list-outside pl-6"
+                )}
+                {...props}
+              >
+                {children}
+              </ul>
+            );
+          },
+          li: ({ children, className, ...props }: any) => {
+            const isTask = className?.includes("task-list-item");
+            return (
+              <li
+                className={clsx(
+                  "leading-relaxed",
+                  isTask
+                    ? "flex items-start gap-2.5 list-none my-1.5"
+                    : "my-1"
+                )}
+                {...props}
+              >
+                {children}
+              </li>
+            );
+          },
+          input: ({ type, checked, ...props }: any) => {
+            if (type === "checkbox") {
+              return (
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled
+                  className="mt-1 h-4 w-4 shrink-0 rounded accent-s-4 dark:accent-s-6 cursor-default"
+                  {...props}
+                />
+              );
+            }
+            return <input type={type} {...props} />;
+          },
+          details: ({ children, ...props }: any) => (
+            <details
+              className="group border border-p-8 dark:border-p-2 rounded-lg my-3 overflow-hidden bg-p-10 dark:bg-p-1/60 transition-all shadow-sm"
+              {...props}
+            >
+              {children}
+            </details>
+          ),
+          summary: ({ children, ...props }: any) => (
+            <summary
+              className="cursor-pointer select-none px-4 py-3 font-medium flex items-center justify-between hover:bg-p-9 dark:hover:bg-p-2/60 list-none transition-colors"
+              {...props}
+            >
+              <span className="flex-1">{children}</span>
+              <span className="transition-transform duration-200 group-open:rotate-180 text-p-4 dark:text-p-6 ml-2 text-xs">
+                ▼
+              </span>
+            </summary>
           ),
           code: ({ children }) => (
             <code className={clsx("rounded-none px-1", "font-mono")}>

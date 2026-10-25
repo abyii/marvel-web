@@ -11,34 +11,44 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 18;
 
-const getEventsCount = unstable_cache(
-  () => dbClient.event.count(),
-  ["events-count"],
-  { tags: [cacheTags.events] }
-);
+const getEventsCount = async () => {
+  try {
+    return await unstable_cache(
+      () => dbClient.event.count(),
+      ["events-count"],
+      { tags: [cacheTags.events] }
+    )();
+  } catch (error) {
+    return 0;
+  }
+};
 
 const getEvents = async (page: number) => {
-  return await unstable_cache(
-    () =>
-      dbClient.event.findMany({
-        orderBy: [{ eventStartTime: "desc" }, { id: "asc" }],
-        select: {
-          id: true,
-          title: true,
-          typeOfEvent: true,
-          caption: true,
-          coverPhoto: true,
-          eventStartTime: true,
-          eventEndTime: true,
-          registrationStartTime: true,
-          registrationEndTime: true,
-        },
-        skip: (page - 1) * PAGE_SIZE,
-        take: PAGE_SIZE,
-      }),
-    ["events", String(page)],
-    { tags: [cacheTags.events] }
-  )();
+  try {
+    return await unstable_cache(
+      () =>
+        dbClient.event.findMany({
+          orderBy: [{ eventStartTime: "desc" }, { id: "asc" }],
+          select: {
+            id: true,
+            title: true,
+            typeOfEvent: true,
+            caption: true,
+            coverPhoto: true,
+            eventStartTime: true,
+            eventEndTime: true,
+            registrationStartTime: true,
+            registrationEndTime: true,
+          },
+          skip: (page - 1) * PAGE_SIZE,
+          take: PAGE_SIZE,
+        }),
+      ["events", String(page)],
+      { tags: [cacheTags.events] }
+    )();
+  } catch (error) {
+    return [];
+  }
 };
 
 const Page = async ({ searchParams }: { searchParams: Promise<{ page?: string }> }) => {

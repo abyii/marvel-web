@@ -1,6 +1,8 @@
-import { MarkdownRender, Tab, TabGroup } from "@marvel/ui/ui";
+import { Tab, TabGroup } from "@marvel/ui/ui";
 import axios from "axios";
+import fs from "fs";
 import ContentsIndex from "./ContentsIndex";
+import CourseLevelContent from "./CourseLevelContent";
 import Link from "next/link";
 import { getCourse } from "./getCourse";
 import { getCourseLevelFiles } from "../../../utils/github";
@@ -13,17 +15,22 @@ const getSyllabus = async (courseCode: string) => {
   const course = await getCourse(courseCode);
   const levels = await getCourseLevelFiles(course?.repoURL ?? "");
   return Promise.all(
-    levels.map(async (l) =>
-      Buffer.from(
+    levels.map(async (l: any) => {
+      if (l.localPath && fs.existsSync(l.localPath)) {
+        return fs.readFileSync(l.localPath, "utf-8");
+      }
+      const headers: Record<string, string> = {};
+      if (process.env.GITHUB_PAT && !process.env.GITHUB_PAT.startsWith("dummy")) {
+        headers.Authorization = `Bearer ${process.env.GITHUB_PAT}`;
+      }
+      return Buffer.from(
         (
           await axios.get(l.download_url, {
-            headers: {
-              Authorization: `Bearer ${process.env.GITHUB_PAT}`,
-            },
+            headers,
           })
         ).data
-      ).toString()
-    )
+      ).toString();
+    })
   );
 };
 
@@ -46,13 +53,13 @@ export default async function page(props) {
       <div className="w-full max-w-2xl">
         <ContentsIndex totalLevels={content.length} />
         {content?.map((c, i) => (
-          <div id={`${i + 1}`} key={i} className="w-full">
+          <div id={`${i}`} key={i} className="w-full">
             <hr className="border-p-4 my-5" />
             <h1 className="text-xl font-mono text-p-4 dark:text-p-6">
-              Level {i + 1}
+              Level {i}
             </h1>
             <hr className="border-p-4 my-5" />
-            <MarkdownRender content={c} />
+            <CourseLevelContent content={c} />
           </div>
         ))}
       </div>

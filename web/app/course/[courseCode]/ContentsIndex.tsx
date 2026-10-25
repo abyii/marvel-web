@@ -11,9 +11,9 @@ const ContentsIndex = ({ totalLevels }: { totalLevels: number }) => {
         {Array.from({ length: totalLevels }).map((_, i) => (
           <Button
             key={i}
-            onPress={() => (window.location.hash = "#" + (i + 1))}
+            onPress={() => (window.location.hash = "#" + i)}
           >
-            Level {i + 1}
+            Level {i}
           </Button>
         ))}
       </div>

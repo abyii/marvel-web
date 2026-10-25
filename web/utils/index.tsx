@@ -2,8 +2,25 @@ import { IOptions } from "sanitize-html";
 import { TypeOfArticle, TypeOfEvent, TypeOfWork } from "@prisma/client";
 
 export const SANITIZE_OPTIONS: IOptions = {
-  allowedTags: ["iframe", "br", "strong", "blockquote"],
-  allowedAttributes: { iframe: ["src", "height"] },
+  allowedTags: [
+    "iframe",
+    "br",
+    "strong",
+    "blockquote",
+    "details",
+    "summary",
+    "input",
+    "div",
+    "span",
+  ],
+  allowedAttributes: {
+    iframe: ["src", "height"],
+    input: ["type", "checked", "disabled"],
+    details: ["open", "class", "className"],
+    summary: ["class", "className"],
+    div: ["class", "className", "id"],
+    span: ["class", "className"],
+  },
   allowedIframeHostnames: [
     "www.youtube.com",
     "codesandbox.io",

@@ -66,7 +66,7 @@ export default async function page(props) {
         <div className="w-full flex flex-col items-center mx-5 max-w-3xl gap-5">
           <>
             <h1 className="text-2xl">
-              {work?.typeOfWork === "PROJECT" ? "Overview" : "Level 1 report"}{" "}
+              {work?.typeOfWork === "PROJECT" ? "Overview" : "Level 0 report"}{" "}
               is yet to be written.
             </h1>
 
