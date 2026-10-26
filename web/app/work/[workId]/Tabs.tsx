@@ -52,7 +52,7 @@ const Tabs = ({ work }) => {
                 reportId === workTabs?.[i] || (!reportId && i == 0);
               return i >= startIndexOfDisabledButtons ? (
                 <Tab key={i} disabled>
-                  Level {i + 1}
+                  Level {i}
                 </Tab>
               ) : (
                 <Link
@@ -62,7 +62,7 @@ const Tabs = ({ work }) => {
                   }`}
                 >
                   <Tab active={active} data-active={active}>
-                    Level {i + 1}
+                    Level {i}
                   </Tab>
                 </Link>
               );

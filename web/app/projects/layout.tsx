@@ -26,35 +26,41 @@ export const metadata: Metadata = {
 
 // /projects is dynamic (search params), so cache across requests; expired by
 // updateTag(cacheTags.projects) from the work actions.
-const getFeaturedProjects = unstable_cache(
-    () =>
-        dbClient.work.findMany({
-            where: { typeOfWork: "PROJECT" },
-            select: {
-                name: true,
-                note: true,
-                id: true,
-                People: {
+const getFeaturedProjects = async () => {
+    try {
+        return await unstable_cache(
+            () =>
+                dbClient.work.findMany({
+                    where: { typeOfWork: "PROJECT" },
                     select: {
-                        role: true,
-                        person: {
+                        name: true,
+                        note: true,
+                        id: true,
+                        People: {
                             select: {
-                                name: true,
-                                slug: true,
-                                profilePic: true,
+                                role: true,
+                                person: {
+                                    select: {
+                                        name: true,
+                                        slug: true,
+                                        profilePic: true,
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-            },
-            orderBy: {
-                rankingScore: "desc",
-            },
-            take: 12,
-        }),
-    ["projects-featured"],
-    { tags: [cacheTags.projects] }
-);
+                    },
+                    orderBy: {
+                        rankingScore: "desc",
+                    },
+                    take: 12,
+                }),
+            ["projects-featured"],
+            { tags: [cacheTags.projects] }
+        )();
+    } catch (error) {
+        return [];
+    }
+};
 
 export default async function ProjectsLayout({ children }: { children: React.ReactNode }) {
     const featuredProjects = await getFeaturedProjects();

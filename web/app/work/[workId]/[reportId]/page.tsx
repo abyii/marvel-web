@@ -78,9 +78,7 @@ export default async function page(props) {
             <>
               <h1 className="text-2xl">
                 {work?.typeOfWork === "PROJECT" ? "Stage" : "Level"}{" "}
-                {work?.typeOfWork === "PROJECT"
-                  ? work?.Reports?.length
-                  : work?.Reports?.length + 1}{" "}
+                {work?.Reports?.length}{" "}
                 report is yet to be written.
               </h1>
               <Image

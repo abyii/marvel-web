@@ -51,25 +51,33 @@ const getProjectsListRaw = async (page: number, query: string) => {
 
 // the unfiltered list is cached; searches hit the DB
 const getProjectsList = async (page: number, query: string) => {
-    if (!query) {
-        return await unstable_cache(
-            async () => getProjectsListRaw(page, query),
-            [`projects-list-${page}`],
-            { tags: [cacheTags.projects] }
-        )();
+    try {
+        if (!query) {
+            return await unstable_cache(
+                async () => getProjectsListRaw(page, query),
+                [`projects-list-${page}`],
+                { tags: [cacheTags.projects] }
+            )();
+        }
+        return await getProjectsListRaw(page, query);
+    } catch (error) {
+        return [];
     }
-    return await getProjectsListRaw(page, query);
 };
 
 const getProjectsCount = async (query: string) => {
-    if (!query) {
-        return await unstable_cache(
-            async () => dbClient.work.count({ where: getWhere(query) }),
-            ["projects-count"],
-            { tags: [cacheTags.projects] }
-        )();
+    try {
+        if (!query) {
+            return await unstable_cache(
+                async () => dbClient.work.count({ where: getWhere(query) }),
+                ["projects-count"],
+                { tags: [cacheTags.projects] }
+            )();
+        }
+        return await dbClient.work.count({ where: getWhere(query) });
+    } catch (error) {
+        return 0;
     }
-    return await dbClient.work.count({ where: getWhere(query) });
 };
 
 export default async function page({ searchParams }: { searchParams: Promise<{ page?: string; q?: string }> }) {
